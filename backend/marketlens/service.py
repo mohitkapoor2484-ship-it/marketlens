@@ -11,6 +11,7 @@ from .db import Backtest, Dataset, Job, PaperAccount, RuleRevision, Scan, Signal
 from .domain import Bar, Instrument, RULE_VERSION, canonical, digest, now_utc, parse_time, stamp
 from .execution import initial_state
 from .providers import DemoProvider, EODHDProvider, PROVIDER_INFO
+from .public_data import YahooProvider
 from .research import finite_row, indicator_frame
 from .strategies import rank_candidate
 
@@ -21,7 +22,7 @@ class Service:
     def __init__(self, settings, db):
         self.settings, self.db = settings, db
         self.operations = RLock()
-        self.provider = DemoProvider() if settings.data_mode == "demo" else EODHDProvider(settings, db)
+        self.provider = {"demo": DemoProvider, "eodhd": lambda: EODHDProvider(settings, db), "yahoo": lambda: YahooProvider(settings, db)}[settings.data_mode]()
         self.universe = [Instrument.model_validate(x) for x in json.loads(settings.universe_path.read_text(encoding="utf-8"))]
         symbols = {i.symbol for i in self.universe}
         if len(symbols) != len(self.universe) or any(i.benchmark not in symbols for i in self.universe):
@@ -148,7 +149,7 @@ class Service:
                 rows.append({"symbol": inst.symbol, "market": inst.market, "last_session": last, "expected_session": expected, "fetched_at": ds.fetched_at if ds else None, "status": "synthetic" if ds and ds.mode == "demo" else "unavailable" if ds is None else "stale" if last < expected else "available", "missing_sessions": len(ds.payload.get("missing_sessions", [])) if ds else None, "news_status": ds.payload.get("news_status") if ds else "unavailable", "dataset_id": ds.id if ds else None})
             jobs = [{"id": j.id, "key": j.key, "started_at": j.started_at, "finished_at": j.finished_at, "status": j.status, "detail": j.detail} for j in s.query(Job).order_by(Job.id.desc()).limit(50)]
             fx = latest_dataset(s, "USDAUD.FOREX", self.settings.data_mode)
-        return {"mode": self.settings.data_mode, "provider": PROVIDER_INFO[self.settings.data_mode], "symbols": rows, "jobs": jobs, "fx": {"last_date": fx.payload["rates"][-1]["date"], "fetched_at": fx.fetched_at} if fx else None, "scheduler_enabled": self.settings.scheduler_enabled, "provider_lag_minutes": self.settings.provider_lag_minutes, "key_configured": bool(self.settings.eodhd_api_key.get_secret_value()), "intraday": "Disabled: no licensed intraday adapter configured"}
+        return {"mode": self.settings.data_mode, "provider": PROVIDER_INFO[self.settings.data_mode], "symbols": rows, "jobs": jobs, "fx": {"last_date": fx.payload["rates"][-1]["date"], "fetched_at": fx.fetched_at} if fx else None, "scheduler_enabled": self.settings.scheduler_enabled, "provider_lag_minutes": self.settings.provider_lag_minutes, "key_configured": bool(self.settings.eodhd_api_key.get_secret_value()) if self.settings.data_mode == "eodhd" else False, "key_required": self.settings.data_mode == "eodhd", "intraday": "Disabled: no licensed intraday adapter configured"}
 
     def scan(self, market=None, record_forward=True):
         def work():
@@ -192,7 +193,7 @@ class Service:
             identifier = str(uuid.uuid4())
             with self.db.session() as s:
                 s.add(Scan(id=identifier, created_at=created, mode=self.settings.data_mode, payload=payload))
-            if record_forward and self.settings.data_mode == "eodhd":
+            if record_forward and self.settings.data_mode in {"yahoo", "eodhd"}:
                 from .paper import record_signals
                 record_signals(self, shortlist)
             return {"scan_id": identifier, **payload}
@@ -211,7 +212,7 @@ class Service:
                 raise ValueError("Data unavailable; run provider refresh")
             frame = indicator_frame(ds.payload)
             chart = [{"date": day, **finite_row(row)} for day, row in frame.iloc[-600:].iterrows()]
-            return {"instrument": inst.model_dump(), "dataset_id": ds.id, "mode": ds.mode, "fetched_at": ds.fetched_at, "bars": chart, "actions": ds.payload["actions"], "news": ds.payload["news"], "news_status": ds.payload["news_status"], "volume_basis": ds.payload["volume_basis"]}
+            return {"instrument": inst.model_dump(), "dataset_id": ds.id, "mode": ds.mode, "fetched_at": ds.fetched_at, "bars": chart, "actions": ds.payload["actions"], "news": ds.payload["news"], "news_status": ds.payload["news_status"], "volume_basis": ds.payload["volume_basis"], "source_provider": ds.provider, "source_symbol": ds.payload.get("source_symbol", ds.symbol), "price_basis": ds.payload.get("price_basis", "Raw provider OHLC"), "news_provider": "Google News RSS" if ds.mode == "yahoo" else ds.mode}
 
     def backtest(self, request):
         from .backtests import research_run

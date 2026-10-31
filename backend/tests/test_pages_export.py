@@ -16,6 +16,8 @@ def test_pages_export_never_publishes_configured_credentials_or_database(tmp_pat
         raise AssertionError("Pages exporter must never call a real provider")
     monkeypatch.setattr("marketlens.providers.EODHDProvider.fetch", fail)
     monkeypatch.setattr("marketlens.providers.EODHDProvider.fx", fail)
+    monkeypatch.setattr("marketlens.public_data.YahooProvider.fetch", fail)
+    monkeypatch.setattr("marketlens.public_data.YahooProvider.fx", fail)
     spec = importlib.util.spec_from_file_location("marketlens_pages_export", ROOT / "scripts/export_pages.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

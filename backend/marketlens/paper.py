@@ -18,7 +18,7 @@ def record_signals(service, candidates):
         state = copy.deepcopy(account.state)
         for c in candidates:
             ds = s.get(Dataset, c["dataset_id"])
-            if not ds or ds.mode != "eodhd" or not c["qualified"]:
+            if not ds or ds.mode not in {"yahoo", "eodhd"} or ds.mode != service.settings.data_mode or not c["qualified"]:
                 continue
             # Frozen account strategy, costs and risk rules; settings changes never rewrite it.
             params = account.config["strategy"]
@@ -53,13 +53,13 @@ def record_signals(service, candidates):
 
 
 def evaluate(service):
-    if service.settings.data_mode != "eodhd":
+    if service.settings.data_mode not in {"yahoo", "eodhd"}:
         return {"evaluated": 0, "notice": "Fixture observations cannot evaluate the forward account"}
     with service.db.session() as s:
         account = s.get(PaperAccount, "forward")
         state = copy.deepcopy(account.state)
         config = account.config
-        fxds = latest_dataset(s, "USDAUD.FOREX", "eodhd")
+        fxds = latest_dataset(s, "USDAUD.FOREX", service.settings.data_mode)
         rates = fxds.payload["rates"] if fxds else []
         schedule = []
         symbols = {o["symbol"] for o in state["orders"] if o["status"] in {"pending", "filled", "partially_filled"}}
@@ -67,7 +67,7 @@ def evaluate(service):
         preflight_failures = []
         cutoff = None
         for symbol in symbols:
-            ds = latest_dataset(s, symbol, "eodhd")
+            ds = latest_dataset(s, symbol, service.settings.data_mode)
             if not ds:
                 preflight_failures.append({"symbol": symbol, "reason": "Active symbol feed unavailable"})
                 continue
@@ -86,7 +86,7 @@ def evaluate(service):
                 append_event(s, "forward", f"data-failure:{digest(failure)}", {"type": "execution_failure", **failure})
             return {"evaluated": 0, "failures": preflight_failures}
         for symbol in symbols:
-            ds = latest_dataset(s, symbol, "eodhd")
+            ds = latest_dataset(s, symbol, service.settings.data_mode)
             inst = service.instrument(symbol)
             if not ds or parse_time(ds.fetched_at) > now_utc():
                 continue
@@ -125,7 +125,7 @@ def evaluate(service):
             baseline = state.setdefault("benchmark", initial_state(config["portfolio"]["starting_balance"]))
             benchmark_schedule = []
             for symbol in ("STW.AU", "SPY.US"):
-                ds = latest_dataset(s, symbol, "eodhd")
+                ds = latest_dataset(s, symbol, service.settings.data_mode)
                 if not ds:
                     continue
                 market = "ASX" if symbol.endswith(".AU") else "US"

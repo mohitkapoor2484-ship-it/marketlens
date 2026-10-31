@@ -26,7 +26,7 @@ def _cycle(service, market=None):
 
 
 def tick(service):
-    if service.settings.data_mode != "eodhd":
+    if service.settings.data_mode not in {"yahoo", "eodhd"}:
         return
     now = now_utc()
     for market in ("ASX", "US"):

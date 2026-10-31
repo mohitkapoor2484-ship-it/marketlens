@@ -105,7 +105,7 @@ def research_run(dataset, instrument, fx_dataset, benchmark, request, rules):
             raise ValueError(f"{source.symbol}: {len(missing)} missing sessions; repair data or narrow the range. No forward-filled OHLCV")
     # Freeze the complete data, rules, source timestamps, code and assumptions.
     manifest = {"symbol": instrument.symbol, "instrument": instrument.model_dump(), "dataset_id": dataset.id, "dataset_hash": dataset.content_hash,
-                "source_fetched_at": dataset.fetched_at, "benchmark_dataset_id": benchmark.id, "benchmark_hash": benchmark.content_hash,
+                "source_fetched_at": dataset.fetched_at, "source_provider": dataset.provider, "source_symbol": payload.get("source_symbol", dataset.symbol), "price_basis": payload.get("price_basis", "Raw provider OHLC"), "corporate_action_status": payload.get("actions_status"), "benchmark_dataset_id": benchmark.id, "benchmark_hash": benchmark.content_hash,
                 "fx_dataset_id": fx_dataset.id if fx_dataset else None, "fx_hash": fx_dataset.content_hash if fx_dataset else None,
                 "rules": rules.model_dump(), "request": request, "rule_version": RULE_VERSION, "code_sha256": code_version(),
                 "assumptions": ASSUMPTIONS, "mode": dataset.mode, "engine": f"Backtrader {bt.__version__} event clock + MarketLens AUD execution ledger", "point_in_time_verified": False}

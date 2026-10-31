@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ```
 
-Open **http://127.0.0.1:8000**. Setup installs dependencies, builds the frontend and applies database migration 001. The initial demo loads fixed deterministic synthetic daily histories (2017–2025). All fixture prices, scanner rankings and replay results are labelled synthetic. News is unavailable, rather than invented. The forward account starts at AUD 10,000 and **zero genuine signals**.
+Open **http://127.0.0.1:8000**. Setup installs dependencies, builds the frontend and applies database migration 001. The default source is Yahoo Finance daily history with Google News RSS headlines, with no account or API key required. Click Update research or let the enabled close-aware scheduler load observations; unavailable feeds remain unavailable. Set DATA_MODE=demo explicitly for fixed synthetic histories (2017–2025), labelled fixture results and no invented news. A new forward account starts at AUD 10,000 and zero genuine signals.
 
 On a fresh clone, run `scripts/setup.ps1` first; dependencies, the frontend build, local data, reports and credentials are excluded from Git. For an already configured local checkout, `scripts/start.ps1` is sufficient. `Ctrl+C` stops the server. Keep one process using a given SQLite file. Don’t run CLI write operations alongside the server; use the dashboard’s Update Research button instead.
 
@@ -36,15 +36,20 @@ cd ..
 
 Development: run the same API command, then `cd frontend; npm run dev` in a second PowerShell window. Vite uses port 5173 and proxies `/api` to 8000. The production API serves the built dashboard itself. The JSON API contract is `/openapi.json`.
 
-## Connect actual data
+## Connect actual data — Yahoo Finance + Google News RSS
 
-Read [provider contracts and costs](docs/PROVIDERS.md). The implemented real adapter is **EODHD**, with `.AU` and `.US` symbols and `USDAUD.FOREX`. No alternate provider is silently substituted. You need your own EODHD account/key and entitlements covering the requested exchanges, history, splits/dividends, FX, and optional news/fundamentals. No OpenAI key or LLM account is required.
+Read [provider contracts and limitations](docs/PROVIDERS.md). The default `DATA_MODE=yahoo` uses Yahoo's public daily-chart interface and Google News RSS. No EODHD account, Yahoo API key, Google API key, OpenAI key or LLM account is required. These are unofficial/public interfaces with no guaranteed coverage, rate allowance or availability.
 
-1. Copy `.env.example` to `.env` if necessary. Set `DATA_MODE=eodhd` and `EODHD_API_KEY=your-key` locally. Never put secrets into React code or source control.
-2. Set a daily credit budget and request limit appropriate to your subscription. The default 20-credit sandbox budget intentionally cannot fund a full universe refresh. A base refresh of 14 instruments needs at least **43 credits** (OHLCV + splits + dividends for each, plus FX); news adds 5 per symbol and fundamentals 10 per symbol. Retries also consume credits. A sandbox may not provide enough history for warmup or historical research.
-3. Optionally enable `ENABLE_NEWS=true` and `ENABLE_FUNDAMENTALS=true` only with corresponding entitlements and budget. Market-cap filtering excludes unknown caps when enabled. Current fundamentals are never used as historical point-in-time fundamentals.
-4. Maintain `universe.json`; restart after editing. The illustrative stock selection is not a complete exchange universe. Benchmarks must also be listed. Historical membership evidence fields are retained, but the app does not claim a historically complete membership dataset.
-5. Restart and click **Update research**. Inspect **Data Health** for errors, missing sessions, latest bar dates, FX and retrieval timestamps. Failure never produces synthetic prices in real mode. Real and demo datasets have separate mode partitions.
+1. Copy `.env.example` to `.env` on a new installation. Use `DATA_MODE=yahoo`, `ENABLE_NEWS=true` and `SCHEDULER_ENABLED=true`. Request spacing defaults to two seconds (`YAHOO_REQUEST_INTERVAL_SECONDS=2`). Keep one local server running for unattended updates.
+2. Start the app and select **Update research**. A full 14-instrument refresh can take over a minute because prices, FX and headlines are requested sequentially. Data is persisted to the ignored local database. The scheduler checks every ten minutes and refreshes after the corresponding exchange close plus the default three-hour publication buffer.
+3. Inspect **Data Health** for each symbol's latest session, source retrieval time, failed jobs and missing sessions. Stock Detail shows the canonical and provider symbols. `BHP.AU` maps to Yahoo `BHP.AX`; `AAPL.US` maps to `AAPL`; US share-class dots map to Yahoo hyphens. Do not silently change `universe.json` to a mixture of provider formats.
+4. Yahoo's split-adjusted OHLCV and dividends are restored to an as-traded convention using effective split events. The original source bars, reconstruction factors and any discarded appended quote snapshots are retained in the immutable dataset. Dividend-adjusted close is kept separately and never used as an executable price. This is a reconstruction from revised vendor data, not verified historical point-in-time data. Yahoo does not supply dividend payment dates here; the ledger's disclosed ex-date cash approximation applies.
+5. Google News RSS stores only actual titles, publisher names, links, publication and retrieval times. It does not infer sentiment. Successful feeds are cached for 30 minutes inside a running process; scheduled EOD cycles request fresh news. Failed, undated or future-dated items remain unavailable. Article bodies are not copied.
+6. Source failures never switch to synthetic data or another provider. Rate limits are shown as failures; no proxy rotation or access-control bypass is used. Market cap is unavailable in the Yahoo chart adapter; enabling a minimum-cap filter excludes unknown values rather than inventing them. Intraday remains disabled.
+
+Yahoo's data is intended for personal research. This local configuration does not confer public redistribution rights. **The public GitHub Pages workflow continues to export only isolated synthetic fixtures**, never this local database's Yahoo prices, portfolio, signals or news. The [Pages guide](docs/GITHUB_PAGES.md) explains the distinction. An always-on private research service requires a separately hosted Python backend with appropriate access controls.
+
+The legacy EODHD adapter remains available only when explicitly selected with `DATA_MODE=eodhd` and a valid key/entitlement. Its quotas and charges are documented in [PROVIDERS.md](docs/PROVIDERS.md). It is never a fallback from Yahoo.
 
 ## Use the dashboard
 
@@ -59,7 +64,7 @@ Read [provider contracts and costs](docs/PROVIDERS.md). The implemented real ada
 
 ## Scheduling and reports
 
-Set `SCHEDULER_ENABLED=true`, restart, and keep the local server running. A single APScheduler worker checks every 10 minutes for each exchange’s latest closed session plus the publication buffer (`PROVIDER_LAG_MINUTES=180`). It catches up missed closes after restart, respects exchange holidays and Melbourne DST, evaluates existing paper signals before recording new ones, and writes daily reports. Failed scheduled cycles retry at most three times, at least 30 minutes apart. HTTP transport/transient provider failures have at most three bounded rate-limited attempts. Inspect failed jobs in Data Health; correct the cause and use Update Research for a manual retry. Saturday/Sunday checks produce one weekly summary per ISO week. Sleeping/offline computers cannot run jobs; the next launch catches up the latest eligible close, never retroactively creates missed forward signals.
+The example configuration enables `SCHEDULER_ENABLED=true`; restart and keep the local server running. A single APScheduler worker checks every 10 minutes for each exchange’s latest closed session plus the publication buffer (`PROVIDER_LAG_MINUTES=180`). It catches up missed closes after restart, respects exchange holidays and Melbourne DST, evaluates existing paper signals before recording new ones, and writes daily reports. Failed scheduled cycles retry at most three times, at least 30 minutes apart. HTTP transport/transient provider failures have at most three bounded rate-limited attempts. Inspect failed jobs in Data Health; correct the cause and use Update Research for a manual retry. Saturday/Sunday checks produce one weekly summary per ISO week. Sleeping/offline computers cannot run jobs; the next launch catches up the latest eligible close, never retroactively creates missed forward signals.
 
 When the server is stopped, manual commands are:
 
@@ -84,4 +89,4 @@ See [validation results](docs/VALIDATION.md), [architecture](docs/ARCHITECTURE.m
 
 Optional Docker (Docker Desktop required): build the frontend first, copy `.env.example` to `.env`, then `docker compose -f compose.yml up --build`. Only loopback port 8000 is published. Docker startup was not verified unless stated in VALIDATION.md. Future hosted use needs authentication, TLS, PostgreSQL worker coordination and a redistribution-appropriate data licence; this local build deliberately trusts only localhost hosts/origins.
 
-Actual provider coverage, historical vintages, historical membership/delistings and real forward outcomes cannot be established using fixtures. The platform does not claim real-time coverage, guaranteed accuracy, profitability, or a verified profitable strategy. At delivery, the 100-forward-signal milestone remains unfulfilled and must accrue over future eligible sessions; it is never synthesized during setup.
+Actual provider coverage, historical vintages, historical membership/delistings and real forward outcomes cannot be established using fixtures. Yahoo and RSS connectivity are checked separately from fixture tests; availability can change. The platform does not claim real-time coverage, guaranteed accuracy, profitability, or a verified profitable strategy. At delivery, the 100-forward-signal milestone remains unfulfilled and must accrue over future eligible sessions; it is never synthesized during setup.

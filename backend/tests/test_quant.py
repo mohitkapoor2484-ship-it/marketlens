@@ -54,6 +54,7 @@ def test_known_indicator_values_and_adjusted_close_not_used():
 
 
 def test_asx_us_holidays_and_dst():
+    assert "2025-01-09" not in sessions("US", "2025-01-08", "2025-01-10")
     assert "2026-01-26" not in sessions("ASX", "2026-01-23", "2026-01-28")
     assert "2026-07-03" not in sessions("US", "2026-07-01", "2026-07-06")
     from zoneinfo import ZoneInfo

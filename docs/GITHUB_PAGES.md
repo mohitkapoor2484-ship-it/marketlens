@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ```
 
-Then open http://127.0.0.1:8000. Configure EODHD and schedules in the local ignored `.env` as described in README. No provider key belongs in Pages, JavaScript, GitHub repository variables prefixed `VITE_`, or a published artifact.
+Then open http://127.0.0.1:8000. Use DATA_MODE=yahoo and ENABLE_NEWS=true in the local ignored `.env`; the full engine then uses Yahoo Finance and Google News RSS without a paid account or API key. Enable local schedules as described in README. The public Pages preview intentionally keeps fixture-only publication under the sources’ personal-use terms. No provider key belongs in Pages, JavaScript, GitHub repository variables prefixed `VITE_`, or a published artifact.
 
 For an always-on full hosted service, deploy the Python API, persistent database and scheduler to a Python-capable server with authentication, TLS, appropriate origin/host controls and a suitable market-data licence. The current localhost security policy must not simply be removed to expose an unauthenticated API. This Pages repair does not provision such a server or create actual forward signals.
 
