@@ -1,0 +1,22 @@
+# Local persistence and future deployment
+
+The local service uses a single SQLite database with WAL, 30-second busy timeout, SQLAlchemy transactions, unique dedupe keys, a process write lock and one scheduler. Run one uvicorn worker, no `--reload` with scheduling. API mutations and scheduled cycles are serialized inside the process. Do not run a second server/CLI writer against the same database. Restarting cannot duplicate a signal (unique cohort/symbol/session/rules key), fill evaluation (unique account/symbol/session), or event key. Order projection, evaluation marker and audit events commit together.
+
+`db.Database.migrate()` implements numbered migration **001**, recorded in `schema_migrations`. It creates the SQLAlchemy schema and initializes a first rule revision. SQLite immutable-record triggers reject update/delete of datasets, scans, runs, signals, paper events, rules and evaluation markers; paper account assumptions are also guarded. `migrations/001_postgresql_audit.sql` supplies equivalent PostgreSQL audit guards. New schema changes must be additional numbered migrations with backups; do not edit an already-applied migration in production.
+
+The provider credits table persists usage across restart. EODHD calls are throttled, retried only on transient HTTP/transport errors, and reject missing keys, quota exhaustion or unavailable actions. Job errors exclude token-bearing URLs. News failure is recorded as unavailable and does not poison an otherwise valid price revision. Fundamentals failure currently fails the symbol's refresh when enabled; disable it if your plan lacks entitlement.
+
+Reports write JSON by atomic replacement. Market snapshots, signals and historical runs remain in the immutable database even when the daily report filename is refreshed. Keep sufficient disk space: immutable full-history revisions are intentionally larger than tail updates. Archival/retention requires a deliberate audit-preserving export workflow; no automatic destructive retention is enabled.
+
+For backup, stop the service, copy `data/marketlens.db` and the reports directory to a separate location, then restart. If copying a running database, use SQLite's backup API rather than copying only the main file while WAL writes are active. Recovery: restore the backup to a new path, set DATABASE_URL, start one worker, inspect Data Health and audit validity, then resume scans. This is local account data; secure the Windows user profile and disk. No broker credentials or live-trading components are present.
+
+Future PostgreSQL path:
+
+1. Stop writes and retain a verified SQLite backup plus exported backtests/paper evidence.
+2. Install a PostgreSQL driver (e.g. `psycopg[binary]`) and set `DATABASE_URL=postgresql+psycopg://…` via environment. No frontend secret support is needed.
+3. On an empty database run schema migration 001 through `Database.migrate()`, then apply `backend/migrations/001_postgresql_audit.sql` using an administrative migration role. Before importing, use a migration owner capable of controlled bulk import and install/validate guards after the import. Copy original ids, timestamps, JSON payloads and hash values; validate row counts, sample rerun hashes and every audit chain. Preserve integer sequences after copying.
+4. The data layer uses portable SQLAlchemy JSON/String/Integer columns. This is a documented migration route, **not a tested PostgreSQL deployment**. Test time/string sorting, sequences, payload size, isolation and restore on a staging instance.
+5. Replace process locks with database advisory locks or a proper single-owner job queue; use serializable transactions or `SELECT … FOR UPDATE` for account projections. Keep one scheduler leader and persistent job ownership/leases. SQLite assumptions do not make a multi-worker PostgreSQL deployment safe by themselves.
+6. Add actual user authentication, authorization, TLS, trusted hosts/origins, backups, monitoring and a data redistribution licence before exposing the app beyond localhost. Local origin/host checks are not production authentication. Never add a broker execution route to the paper package.
+
+Docker Compose is optional, binds only localhost, persists the database in a named volume and reports in a mount, and uses environment secrets from the ignored `.env`. Build the frontend on the host before building the image. A hosted scheduler requires always-on compute; a sleeping Windows computer cannot produce signals during downtime, and the app never retroactively counts them as forward evidence.

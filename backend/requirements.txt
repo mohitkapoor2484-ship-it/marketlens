@@ -1,0 +1,12 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.3
+pydantic-settings==2.9.1
+pandas==2.2.3
+numpy==2.2.6
+SQLAlchemy==2.0.41
+httpx==0.28.1
+backtrader==1.9.78.123
+exchange-calendars==4.5.8
+APScheduler==3.11.0
+tzdata==2025.2
+pytest==8.3.5

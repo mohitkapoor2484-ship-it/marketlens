@@ -1,0 +1,16 @@
+[
+  {"symbol":"BHP.AU","name":"BHP Group","market":"ASX","benchmark":"STW.AU"},
+  {"symbol":"CBA.AU","name":"Commonwealth Bank","market":"ASX","benchmark":"STW.AU"},
+  {"symbol":"CSL.AU","name":"CSL","market":"ASX","benchmark":"STW.AU"},
+  {"symbol":"WES.AU","name":"Wesfarmers","market":"ASX","benchmark":"STW.AU"},
+  {"symbol":"FMG.AU","name":"Fortescue","market":"ASX","benchmark":"STW.AU"},
+  {"symbol":"WDS.AU","name":"Woodside Energy","market":"ASX","benchmark":"STW.AU"},
+  {"symbol":"AAPL.US","name":"Apple","market":"US","benchmark":"SPY.US"},
+  {"symbol":"MSFT.US","name":"Microsoft","market":"US","benchmark":"SPY.US"},
+  {"symbol":"NVDA.US","name":"NVIDIA","market":"US","benchmark":"SPY.US"},
+  {"symbol":"AMZN.US","name":"Amazon","market":"US","benchmark":"SPY.US"},
+  {"symbol":"GOOGL.US","name":"Alphabet","market":"US","benchmark":"SPY.US"},
+  {"symbol":"META.US","name":"Meta Platforms","market":"US","benchmark":"SPY.US"},
+  {"symbol":"STW.AU","name":"SPDR S&P/ASX 200 ETF","market":"ASX","benchmark":"STW.AU","role":"benchmark"},
+  {"symbol":"SPY.US","name":"SPDR S&P 500 ETF","market":"US","benchmark":"SPY.US","role":"benchmark"}
+]
