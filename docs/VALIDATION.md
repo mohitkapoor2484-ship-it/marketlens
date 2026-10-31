@@ -13,3 +13,7 @@ The sandbox blocks Windows asyncio loopback-socket creation; API integration tes
 Not verified: authenticated EODHD ASX/US/news/fundamentals/FX responses (no user provider key supplied), entitlement/redistribution rights, actual historical point-in-time vintages/membership or delisting completeness, PostgreSQL, Docker (Docker command unavailable), unattended jobs across real future sessions, or 100 actual forward signals. The PostgreSQL script and Docker configuration are supplied as future deployment paths, not certified deployments.
 
 At delivery, genuine forward signals = **0** and evaluable forward signals = **0**. Historical fixture replays do not count. Keep the real-data scheduler running over future sessions to collect evidence; there is no way to accelerate this honestly with historical replays.
+
+## GitHub Pages repair
+
+The dedicated Pages build has the `/marketlens/` base and an explicitly selected static fixture adapter. **36 tests passed**, including an export test that configures a sentinel real-provider key/database and verifies neither is used or published. The artifact checker verifies built asset paths, fixture charts, JSON/CSV exports, replay audit and zero actual forward signals. A static-server browser check, with no Python server running, verified scanner loading, browser-local watchlists, candles/EMA controls, saved backtest loading, project-relative download URLs and replay separation, with no browser console errors. Engine mutation controls are disabled. Ordinary local and Pages builds have separate output directories.

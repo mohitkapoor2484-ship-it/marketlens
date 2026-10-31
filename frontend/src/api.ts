@@ -1,6 +1,11 @@
+import { pagesApi, previewDownloadUrl } from './pages';
 export type Data = Record<string, any>;
+export const isPagesPreview = import.meta.env.MODE === 'pages';
+export const downloadUrl = (path: string) => isPagesPreview ? previewDownloadUrl(path) : `/api${path}`;
 export async function api<T = Data>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  if (isPagesPreview) return pagesApi(path, method, body);
   const response = await fetch(`/api${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('The Python research API is unavailable. Start scripts/start.ps1 locally. GitHub Pages requires the dedicated Pages preview build.');
   const data = await response.json();
   if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail));
   return data;

@@ -2,6 +2,10 @@
 
 A local Windows-first ASX/US end-of-day research terminal. Python/FastAPI, pandas/NumPy, Backtrader event-driven historical research, SQLite/SQLAlchemy and React/TypeScript/Tailwind with Lightweight Charts and equity charts. **Research and paper simulation only. There is no broker integration, live order submission, or broker credential support.**
 
+## GitHub Pages preview
+
+Open [the interactive Pages preview](https://mohitkapoor2484-ship-it.github.io/marketlens/). It uses explicit synthetic fixture snapshots. Scanner filters, charts, a saved historical experiment, replay inspection and downloads work without a server; new scans, backtests, scheduling and genuine forward paper trading require the Python service below. See [Pages deployment and limitations](docs/GITHUB_PAGES.md).
+
 ## Start on Windows
 
 Prerequisites: Python 3.10–3.12, Node.js 22+ and npm. In PowerShell:

@@ -9,6 +9,9 @@ data/
 reports/
 node_modules/
 frontend/dist/
+frontend/dist-pages/
+frontend/public/pages-data/
+frontend/public/.nojekyll
 *.log
 *.tsbuildinfo
 *.db

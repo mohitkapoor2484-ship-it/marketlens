@@ -1,1 +1,29 @@
-{"name":"marketlens","private":true,"version":"1.0.0","type":"module","scripts":{"dev":"vite --host 127.0.0.1","build":"tsc -b && vite build","preview":"vite preview --host 127.0.0.1"},"dependencies":{"react":"18.3.1","react-dom":"18.3.1","lightweight-charts":"4.2.3","lucide-react":"0.468.0","recharts":"2.15.3"},"devDependencies":{"@types/react":"18.3.20","@types/react-dom":"18.3.6","@vitejs/plugin-react":"4.4.1","autoprefixer":"10.4.21","postcss":"8.5.3","tailwindcss":"3.4.17","typescript":"5.8.3","vite":"6.3.5"}}
+{
+  "name": "marketlens",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "build:pages": "tsc -b && vite build --mode pages"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "lightweight-charts": "4.2.3",
+    "lucide-react": "0.468.0",
+    "recharts": "2.15.3"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.20",
+    "@types/react-dom": "18.3.6",
+    "@vitejs/plugin-react": "4.4.1",
+    "autoprefixer": "10.4.21",
+    "postcss": "8.5.3",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.8.3",
+    "vite": "6.3.5"
+  }
+}
