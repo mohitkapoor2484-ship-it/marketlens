@@ -4,7 +4,7 @@ import math
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 UTC = timezone.utc
 RULE_VERSION = "eod-rules-1.0"
@@ -42,10 +42,17 @@ class Instrument(StrictModel):
     name: str = Field(min_length=1, max_length=150)
     market: Literal["ASX", "US"]
     benchmark: str
-    role: Literal["stock", "benchmark"] = "stock"
+    role: Literal["stock", "etf", "benchmark"] = "stock"
     member_from: str | None = None
     member_to: str | None = None
     membership_evidence: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def nonblank_name(cls, value):
+        if not value.strip():
+            raise ValueError("Display name cannot be blank")
+        return value.strip()
 
     @model_validator(mode="after")
     def suffix(self):

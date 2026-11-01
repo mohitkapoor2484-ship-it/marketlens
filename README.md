@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ```
 
-Open **http://127.0.0.1:8000**. Setup installs dependencies, builds the frontend and applies database migration 001. The default source is Yahoo Finance daily history with Google News RSS headlines, with no account or API key required. Click Update research or let the enabled close-aware scheduler load observations; unavailable feeds remain unavailable. Set DATA_MODE=demo explicitly for fixed synthetic histories (2017–2025), labelled fixture results and no invented news. A new forward account starts at AUD 10,000 and zero genuine signals.
+Open **http://127.0.0.1:8000**. Setup installs dependencies, builds the frontend and applies database migrations 001–002. The default source is Yahoo Finance daily history with Google News RSS headlines, with no account or API key required. Click Update research or let the enabled close-aware scheduler load observations; unavailable feeds remain unavailable. Set DATA_MODE=demo explicitly for fixed synthetic histories (2017–2025), labelled fixture results and no invented news. A new forward account starts at AUD 10,000 and zero genuine signals.
 
 On a fresh clone, run `scripts/setup.ps1` first; dependencies, the frontend build, local data, reports and credentials are excluded from Git. For an already configured local checkout, `scripts/start.ps1` is sufficient. `Ctrl+C` stops the server. Keep one process using a given SQLite file. Don’t run CLI write operations alongside the server; use the dashboard’s Update Research button instead.
 
@@ -35,6 +35,10 @@ cd ..
 ```
 
 Development: run the same API command, then `cd frontend; npm run dev` in a second PowerShell window. Vite uses port 5173 and proxies `/api` to 8000. The production API serves the built dashboard itself. The JSON API contract is `/openapi.json`.
+
+## Edit the stock/ETF list
+
+In the local dashboard, open **Settings → Market universe**. Select a market and Stock/ETF type, enter a ticker (for example BHP, VAS.AX or TSLA), click **Add instrument**, then **Save universe**. Remove unwanted draft rows with the trash button. Changes persist immediately without restarting. Click **Refresh & upload now** to download new instruments and update the public snapshot. The public Settings view shows the list read-only. See [editor validation, paper protections and persistence](docs/UNIVERSE.md).
 
 ## Connect actual data — Yahoo Finance + Google News RSS
 

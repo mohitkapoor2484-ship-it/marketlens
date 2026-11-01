@@ -96,6 +96,14 @@ class Job(Base):
     detail = Column(Text)
 
 
+class UniverseRevision(Base):
+    __tablename__ = "universe_revisions"
+    id = Column(Integer, primary_key=True)
+    created_at = Column(String, nullable=False)
+    payload = Column(JSON, nullable=False)
+    hash = Column(String, nullable=False)
+
+
 class Usage(Base):
     __tablename__ = "provider_usage"
     id = Column(Integer, primary_key=True)
@@ -109,7 +117,7 @@ class Watch(Base):
     added_at = Column(String, nullable=False)
 
 
-IMMUTABLE = ["datasets", "scans", "backtests", "signals", "paper_events", "rule_revisions", "evaluations"]
+IMMUTABLE = ["datasets", "scans", "backtests", "signals", "paper_events", "rule_revisions", "evaluations", "universe_revisions"]
 
 
 class Database:
@@ -138,7 +146,11 @@ class Database:
             Base.metadata.create_all(self.engine)
             with self.engine.begin() as con:
                 con.execute(text("INSERT INTO schema_migrations(version, applied_at) VALUES (1, :now)"), {"now": stamp()})
+        # Migration 002 adds the local universe without rewriting migration 001.
+        UniverseRevision.__table__.create(self.engine, checkfirst=True)
         with self.engine.begin() as con:
+            if not con.execute(text("SELECT version FROM schema_migrations WHERE version=2")).first():
+                con.execute(text("INSERT INTO schema_migrations(version, applied_at) VALUES (2, :now)"), {"now": stamp()})
             if self.engine.dialect.name == "sqlite":
                 for table in IMMUTABLE:
                     for operation in ("UPDATE", "DELETE"):

@@ -14,6 +14,7 @@ from .providers import DemoProvider, EODHDProvider, PROVIDER_INFO
 from .public_data import YahooProvider
 from .research import finite_row, indicator_frame
 from .strategies import rank_candidate
+from .universe import load_universe, validate_universe
 
 log = logging.getLogger("marketlens")
 
@@ -23,23 +24,20 @@ class Service:
         self.settings, self.db = settings, db
         self.operations = RLock()
         self.provider = {"demo": DemoProvider, "eodhd": lambda: EODHDProvider(settings, db), "yahoo": lambda: YahooProvider(settings, db)}[settings.data_mode]()
-        self.universe = [Instrument.model_validate(x) for x in json.loads(settings.universe_path.read_text(encoding="utf-8"))]
-        symbols = {i.symbol for i in self.universe}
-        if len(symbols) != len(self.universe) or any(i.benchmark not in symbols for i in self.universe):
-            raise ValueError("Universe symbols must be unique and all benchmarks included")
-        if len(symbols) > 500:
-            raise ValueError("Local universe limited to 500 instruments; review provider budget before scaling")
+        self.universe = validate_universe(json.loads(settings.universe_path.read_text(encoding="utf-8")))
+        self.universe_revision = 0
 
     def instrument(self, symbol):
         found = next((x for x in self.universe if x.symbol == symbol), None)
         if not found:
-            raise ValueError("Symbol is not in universe.json; add an exchange-appropriate instrument and restart")
+            raise ValueError("Symbol is not in the current universe; add it in Settings → Market universe")
         return found
 
     def initialise(self):
         from .domain import AppRules
         initial = AppRules.model_validate(json.loads(self.settings.initial_rules_path.read_text(encoding="utf-8"))) if self.settings.initial_rules_path else None
         self.db.migrate(initial)
+        load_universe(self)
         with self.db.session() as s:
             if not s.get(PaperAccount, "forward"):
                 config = rules(s).model_dump()
@@ -48,6 +46,8 @@ class Service:
         if empty and self.settings.data_mode == "demo":
             self.refresh()
             self.scan()
+        elif self.latest_scan().get("created_at") and self.latest_scan().get("universe_revision") != self.universe_revision:
+            self.scan(record_forward=False)
 
     def save_dataset(self, symbol, payload, fetched_at=None):
         fetched_at = fetched_at or stamp()
@@ -158,7 +158,7 @@ class Service:
             with self.db.session() as s:
                 config = rules(s)
                 for inst in self.universe:
-                    if inst.role != "stock" or market and inst.market != market:
+                    if inst.role not in {"stock", "etf"} or market and inst.market != market:
                         continue
                     ds = latest_dataset(s, inst.symbol, self.settings.data_mode)
                     if not ds:
@@ -189,7 +189,7 @@ class Service:
                     inputs[inst.symbol] = ds.id
             candidates.sort(key=lambda c: (-c["score"], c["symbol"]))
             shortlist = [c for c in candidates if c["qualified"]][:10]
-            payload = {"created_at": created, "mode": self.settings.data_mode, "rules": config.model_dump(), "rule_version": RULE_VERSION, "candidates": candidates, "shortlist": shortlist, "unavailable": unavailable, "datasets": inputs, "notice": "Hypothetical setups from deterministic rules. Scores are not probabilities. No news sentiment is inferred."}
+            payload = {"created_at": created, "mode": self.settings.data_mode, "universe_revision": self.universe_revision, "rules": config.model_dump(), "rule_version": RULE_VERSION, "candidates": candidates, "shortlist": shortlist, "unavailable": unavailable, "datasets": inputs, "notice": "Hypothetical setups from deterministic rules. Scores are not probabilities. No news sentiment is inferred."}
             identifier = str(uuid.uuid4())
             with self.db.session() as s:
                 s.add(Scan(id=identifier, created_at=created, mode=self.settings.data_mode, payload=payload))
@@ -216,7 +216,6 @@ class Service:
 
     def backtest(self, request):
         from .backtests import research_run
-        inst = self.instrument(request["symbol"])
         with self.db.session() as s:
             prior = s.get(Backtest, request["rerun_id"]) if request.get("rerun_id") else None
             if request.get("rerun_id") and prior is None:
@@ -233,6 +232,7 @@ class Service:
                 from .domain import AppRules
                 config = AppRules.model_validate(m["rules"])
             else:
+                inst = self.instrument(request["symbol"])
                 ds = s.get(Dataset, request["dataset_id"]) if request.get("dataset_id") else latest_dataset(s, inst.symbol, self.settings.data_mode)
                 bench = latest_dataset(s, inst.benchmark, self.settings.data_mode)
                 fx = latest_dataset(s, "USDAUD.FOREX", self.settings.data_mode)

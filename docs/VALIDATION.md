@@ -35,3 +35,11 @@ The dedicated Pages build has the `/marketlens/` base and an explicitly selected
 - The owner's verified local API was restarted with publishing enabled. The first scheduled upload completed successfully. Source-session, retrieval, scan and upload dates are distinct. A manual source-refresh/upload uses the same serialized cycle; source and publication failures remain visible and do not substitute fixtures.
 
 This validates the scheduled configuration and first real publication, not future uptime, data-display rights or strategy returns. Long-running unattended reliability, PC sleep/outage recovery over future sessions and the 100-evaluable-forward-signal milestone still require ongoing observation. The local research process is intentionally left running for the requested uploads; it is not a temporary preview server.
+
+## Frontend universe editor — 1 November 2026
+
+- **78 backend tests passed**, with the existing Starlette/AnyIO deprecation warning. New coverage verifies immediate saves and restart persistence, unchanged installation defaults, migration from schema 001, duplicate/cross-market/missing-benchmark validation, size limits, revision conflicts, no-op saves, append-only guards, active order/position/receivable protection, ETF scan inclusion, no signal creation on edits, frozen backtest rerun after instrument removal and local API/origin validation.
+- The TypeScript/Vite production build passed. Browser checks verified duplicate rejection, VAS.AX-to-VAS.AU normalization in an unsaved ETF draft, removal of that draft, save and reload. The owner's original 14-instrument list and saved revision were preserved. No captured browser console errors occurred in the inspected editor.
+- Before activating migration 002, a verified SQLite backup was saved under ignored data/backups. The local engine restarted successfully, seeded its initial universe revision, rescanned cached data without creating signals and continued five-minute publication.
+
+PostgreSQL migration 002 is documented but not executed in this environment. New ticker availability still requires an actual provider refresh; UI validation does not certify an exchange listing or historical point-in-time membership.

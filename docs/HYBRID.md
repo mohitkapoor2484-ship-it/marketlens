@@ -52,3 +52,5 @@ Initial unavailability shows a publisher-connection error. After a verified actu
 Inspect the upload banner or `GET /api/publication`. The local Job History retains upload failures. Credential, connection or ref conflicts leave the previous public manifest intact; the next scheduled attempt retries. Fix the cause, then press **Upload saved data**. Restart the server after `.env` changes. CLI `python -m marketlens publication` inspects status; CLI `publish` uploads, but do not run a CLI writer alongside the API.
 
 New scans/fills remain governed by their original causal rules. Uploading a snapshot creates no signals or fills; historical replays cannot contribute to the genuine-forward milestone.
+
+The local Settings → Market universe editor changes scan membership without restarting. Save first, then refresh newly added symbols. The published Settings view displays the current list read-only. Protected account-symbol reasons and universe audit details remain local. See UNIVERSE.md.

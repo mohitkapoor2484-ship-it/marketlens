@@ -38,6 +38,8 @@ def build_snapshot(service):
     scan = service.latest_scan()
     if not scan.get("created_at") or not scan.get("candidates"):
         raise ValueError("Run an actual-data research scan before uploading")
+    if hasattr(service, "universe_revision") and scan.get("universe_revision") != service.universe_revision:
+        raise ValueError("Universe changed; rescan cached research before uploading")
     candidates = []
     for original in scan["candidates"]:
         if original.get("mode") != service.settings.data_mode:
@@ -48,7 +50,7 @@ def build_snapshot(service):
         item["news"] = public_news(original.get("news", []))
         candidates.append(item)
     shortlist_symbols = {item["symbol"] for item in scan["shortlist"]}
-    public_scan = select(scan, ("created_at", "mode", "scan_id", "rule_version", "notice"))
+    public_scan = select(scan, ("created_at", "mode", "scan_id", "rule_version", "notice", "universe_revision"))
     public_scan.update(candidates=candidates, shortlist=[c for c in candidates if c["symbol"] in shortlist_symbols],
                        unavailable=[select(x, ("symbol", "reason")) for x in scan.get("unavailable", [])])
     health = service.data_health()

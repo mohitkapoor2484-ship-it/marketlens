@@ -16,7 +16,7 @@ from pydantic import Field, model_validator
 
 from .config import ROOT, settings
 from .db import Backtest, Database, RuleRevision, Watch, rules
-from .domain import AppRules, StrategyParams, StrictModel, stamp
+from .domain import AppRules, Instrument, StrategyParams, StrictModel, stamp
 from .jobs import cycle, start_scheduler
 from .paper import account_view, cancel, evaluate, replay
 from .service import Service
@@ -43,6 +43,11 @@ class BacktestRequest(StrictModel):
 
 class SymbolRequest(StrictModel):
     symbol: str
+
+
+class UniverseRequest(StrictModel):
+    items: list[Instrument] = Field(min_length=3, max_length=500)
+    expected_revision: int = Field(ge=1)
 
 
 def create_app(service=None):
@@ -170,6 +175,20 @@ def create_app(service=None):
         with svc.db.session() as s:
             s.add(RuleRevision(created_at=stamp(), payload=body.model_dump()))
         return {"saved": True, "rules": body.model_dump()}
+
+    @app.get("/api/universe")
+    def get_universe():
+        from .universe import universe_view
+        with svc.operations:
+            return universe_view(svc)
+
+    @app.put("/api/universe")
+    def update_universe(body: UniverseRequest):
+        from .universe import UniverseConflict, save_universe
+        try:
+            return mutate(lambda: save_universe(svc, [i.model_dump() for i in body.items], body.expected_revision))
+        except UniverseConflict as exc:
+            raise HTTPException(409, str(exc)) from None
 
     @app.get("/api/watchlist")
     def watchlist():
