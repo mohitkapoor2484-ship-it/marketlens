@@ -46,6 +46,9 @@ jobs:
       - name: Check immutable published-snapshot reader
         working-directory: frontend
         run: node scripts/test-publication.mjs
+      - name: Check discovery company filters
+        working-directory: frontend
+        run: node scripts/test-discovery-filters.mjs
       - name: Verify Pages artifact paths and fixture isolation
         working-directory: frontend
         run: node scripts/check-pages.mjs

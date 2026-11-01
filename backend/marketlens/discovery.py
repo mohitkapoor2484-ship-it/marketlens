@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .calendars import latest_closed
 from .config import ROOT
@@ -14,8 +14,9 @@ from .db import DiscoveryRun, UniverseRevision, latest_dataset
 from .domain import Instrument, StrictModel, digest, now_utc, parse_time, stamp
 from .providers import ProviderError
 from .universe import save_universe
+from .fundamentals import ProfileRateLimit, analyst, enrich_rows, filter_failure
 
-VERSION = "yahoo-discovery-1"
+VERSION = "yahoo-discovery-2"
 EXCHANGES = {"ASX": ["ASX"], "US": ["NMS", "NYQ", "NGM", "NCM", "ASE", "PCX", "BTS"]}
 PRESETS = {"ASX": {"min_price": .3, "min_average_volume": 100_000, "min_turnover": 1_000_000},
            "US": {"min_price": 5., "min_average_volume": 300_000, "min_turnover": 5_000_000}}
@@ -35,6 +36,18 @@ class DiscoveryRequest(StrictModel):
     min_price: float | None = Field(None, ge=.01, le=100_000)
     min_average_volume: float | None = Field(None, ge=0, le=1e12)
     min_turnover: float | None = Field(None, ge=0, le=1e15)
+    min_market_cap: float | None = Field(None, ge=0, le=1e16)
+    max_market_cap: float | None = Field(None, ge=0, le=1e16)
+    min_roe_percent: float | None = Field(None, ge=-100000, le=100000)
+    max_roe_percent: float | None = Field(None, ge=-100000, le=100000)
+    analyst_rating: Literal['any','rated','strong_buy','buy_or_better','hold_or_better','underperform_or_sell'] = 'any'
+
+    @model_validator(mode='after')
+    def ordered_ranges(self):
+        for low, high in ((self.min_market_cap, self.max_market_cap), (self.min_roe_percent, self.max_roe_percent)):
+            if low is not None and high is not None and low > high:
+                raise ValueError('Minimum cannot exceed maximum for market cap or ROE')
+        return self
 
     def effective(self):
         value = self.model_dump()
@@ -55,19 +68,38 @@ class YahooDiscovery:
         self.settings = settings
         self.last_request = 0.
 
+    def pace(self):
+        delay = max(2, self.settings.yahoo_request_interval_seconds) - (time.monotonic() - self.last_request)
+        if delay > 0:
+            time.sleep(delay)
+        self.last_request = time.monotonic()
+
+    def fundamentals(self, symbol):
+        import yfinance as yf
+        from yfinance.exceptions import YFRateLimitError
+        self.pace()
+        try:
+            return yf.Ticker(symbol).get_info()
+        except YFRateLimitError:
+            raise ProfileRateLimit('Yahoo profile requests rate limited') from None
+        except Exception:
+            raise ProviderError('Yahoo company profile unavailable') from None
+
     def screen(self, request, kind):
         # Lazy import keeps fixture operation independent of cookies and networking.
         import yfinance as yf
         yf.set_tz_cache_location(str(ROOT / "data/yahoo-cache"))
         Q = yf.EquityQuery if kind == "stock" else yf.ETFQuery
-        query = Q("and", [Q("eq", ["region", "au" if request["market"] == "ASX" else "us"]),
+        conditions = [Q("eq", ["region", "au" if request["market"] == "ASX" else "us"]),
                           Q("is-in", ["exchange", *EXCHANGES[request["market"]]]),
                           Q("gte", ["intradayprice", request["min_price"]]),
-                          Q("gte", ["avgdailyvol3m", request["min_average_volume"]])])
-        delay = max(2, self.settings.yahoo_request_interval_seconds) - (time.monotonic() - self.last_request)
-        if delay > 0:
-            time.sleep(delay)
-        self.last_request = time.monotonic()
+                          Q("gte", ["avgdailyvol3m", request["min_average_volume"]])]
+        if kind == 'stock':
+            for key, op in [('min_market_cap','gte'),('max_market_cap','lte')]:
+                if request.get(key) is not None:
+                    conditions.append(Q(op, ['intradaymarketcap', request[key]]))
+        query = Q('and', conditions)
+        self.pace()
         try:
             result = yf.screen(query, size=request["limit"], sortField="avgdailyvol3m", sortAsc=False)
         except Exception:
@@ -120,6 +152,10 @@ def normalize(row, request, kind, retrieved):
             "quote_price": price, "volume": volume, "average_volume_3m": average,
             "approximate_turnover": turnover, "relative_volume_3m": volume / average,
             "change_percent": number_signed(row, "regularMarketChangePercent"),
+            'market_cap': number(row, 'marketCap') or None, 'market_cap_currency': row['currency'],
+            'market_cap_source': 'Yahoo screener quote', 'market_cap_fetched_at': stamp(retrieved),
+            **analyst(row), 'analyst_source': 'Yahoo screener quote', 'analyst_fetched_at': stamp(retrieved),
+            'roe_percent': None, 'fundamental_fetched_at': None, 'reported_quarter': None,
             "sma50_quote": fifty, "sma200_quote": two_hundred,
             "above_sma50": price > fifty if fifty else None, "above_sma200": price > two_hundred if two_hundred else None,
             "source_at": stamp(source), "fetched_at": stamp(retrieved),
@@ -143,6 +179,7 @@ def run_discovery(service, body):
     if service.settings.data_mode != "yahoo":
         raise ValueError("Broad discovery requires explicitly selected Yahoo mode; fixture and EODHD modes do not substitute providers")
     request = body.effective()
+    request['fundamental_profile_budget'] = service.settings.discovery_fundamental_budget
     fingerprint = digest({"request": request, "version": VERSION})
     with service.db.session() as session:
         prior = session.query(DiscoveryRun).filter_by(mode="yahoo", request_hash=fingerprint).order_by(DiscoveryRun.id.desc()).first()
@@ -165,14 +202,36 @@ def run_discovery(service, body):
                         if item["symbol"] in seen:
                             raise ValueError("Duplicate symbol")
                         seen.add(item["symbol"])
+                        # Profiles are checked after cheap quote/liquidity validation.
                         rows.append(item)
                     except (ValueError, TypeError, OverflowError, OSError) as exc:
                         reason = str(exc) if isinstance(exc, ValueError) else "Invalid row"
                         skipped[reason] = skipped.get(reason, 0) + 1
+                sample = [r for r in rows if r['kind'] == kind]
+                rows = [r for r in rows if r['kind'] != kind]
+                sample.sort(key=lambda r: (-r['relative_volume_3m'], -r['approximate_turnover'], r['symbol']))
+                fundamentals = enrich_rows(service, sample, retrieved)
+                accepted = 0
+                for item in sample:
+                    reason = filter_failure(item, request)
+                    if reason:
+                        skipped[reason] = skipped.get(reason, 0) + 1
+                    else:
+                        checked = []
+                        if request['min_market_cap'] is not None or request['max_market_cap'] is not None:
+                            checked.append(f"market cap {item['currency']} {item['market_cap']:g}")
+                        if request['min_roe_percent'] is not None or request['max_roe_percent'] is not None:
+                            checked.append(f"ROE {item['roe_percent']:.2f}%")
+                        if request['analyst_rating'] != 'any':
+                            checked.append('Yahoo analyst category ' + item['analyst_rating'].replace('_',' '))
+                        if checked:
+                            item['reason'] += ' Passes active company filters: ' + ', '.join(checked) + '.'
+                        rows.append(item)
+                        accepted += 1
                 total = response.get("total")
                 total = total if isinstance(total, int) and not isinstance(total, bool) and total >= len(quotes) else None
                 groups.append({"kind": kind, "status": "success", "provider_matches": total, "returned": len(quotes),
-                               "accepted": len(seen), "skipped": skipped, "capped": total > len(quotes) if total is not None else None})
+                               "accepted": accepted, 'fundamentals': fundamentals, "skipped": skipped, "capped": total > len(quotes) if total is not None else None})
             except Exception:
                 message = f"Yahoo {kind} discovery unavailable. Previous results retained; no synthetic fallback"
                 errors.append(message)
@@ -216,7 +275,9 @@ def discovery_view(service):
                             "last_attempt": {"at": attempt.created_at, "status": attempt.status, "errors": attempt.payload["errors"]},
                             "status": attempt.status})
     return {"provider": INFO, "enabled": service.settings.discovery_enabled, "mode": service.settings.data_mode,
-            "presets": PRESETS, "maximum_selection": 20, "markets": markets, "universe_revision": revision.id}
+            "presets": PRESETS, "maximum_selection": 20, "markets": markets, "universe_revision": revision.id,
+            'fundamentals': {'profile_budget': service.settings.discovery_fundamental_budget, 'cache_hours':24,
+                             'notice': 'Company profiles are a bounded verified subset; unknown fields fail active filters. ETF assets are not substituted for market cap, and ETF fund ratings are not stock analyst consensus.'}}
 
 
 def import_candidates(service, body):

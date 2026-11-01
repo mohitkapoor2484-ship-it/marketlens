@@ -66,12 +66,20 @@ def test_discovery_publication_keeps_only_research_allowlist(public_stub):
     from marketlens.db import DiscoveryRun
     public_stub.universe_revision = public_stub.latest_scan()['universe_revision']
     payload = {'rows': [{'symbol':'TEST.AU', 'source_at':stamp(), 'market':'ASX',
+                         'market_cap':500000000, 'market_cap_currency':'AUD', 'roe_percent':12.5,
+                         'analyst_rating':'buy', 'analyst_mean':2.1, 'analyst_count':8,
+                         'fundamental_snapshot_id':'public-audit-id', 'raw_profile':{'private':'DO-NOT-PUBLISH'},
                          'credentials':'DO-NOT-PUBLISH', 'instrument':{'membership_evidence':'PRIVATE'},
                          'account_id':'DO-NOT-PUBLISH'}], 'errors':[], 'groups':[]}
     with public_stub.db.session() as session:
         session.add(DiscoveryRun(created_at=stamp(), mode='yahoo', market='ASX', request_hash='explicit-test', status='success', payload=payload))
     exported = build_snapshot(public_stub)
     assert exported['discovery']['markets'][0]['rows'][0]['symbol'] == 'TEST.AU'
+    row = exported['discovery']['markets'][0]['rows'][0]
+    assert (row['market_cap'], row['market_cap_currency'], row['roe_percent']) == (500000000, 'AUD', 12.5)
+    assert (row['analyst_rating'], row['analyst_mean'], row['analyst_count']) == ('buy', 2.1, 8)
+    assert row['fundamental_snapshot_id'] == 'public-audit-id'
+    assert 'raw_profile' not in row
     assert 'DO-NOT-PUBLISH' not in canonical(exported)
     assert 'membership_evidence' not in canonical(exported['discovery'])
     assert 'universe_revision' not in exported['discovery']

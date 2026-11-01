@@ -109,13 +109,13 @@ def test_migration_upgrades_existing_version_one_database(universe_service):
     with svc.db.engine.begin() as connection:
         connection.execute(text('DROP TABLE universe_revisions'))
         connection.execute(text('DROP TABLE discovery_runs'))
-        for table in ('intraday_bars', 'intraday_attempts', 'intraday_config_revisions'):
+        for table in ('intraday_bars', 'intraday_attempts', 'intraday_config_revisions', 'fundamental_snapshots'):
             connection.execute(text('DROP TABLE ' + table))
         connection.execute(text('DELETE FROM schema_migrations WHERE version>=2'))
     svc.initialise()
     with svc.db.session() as session:
         assert session.query(UniverseRevision).count() == 1
-        assert session.execute(text('SELECT version FROM schema_migrations ORDER BY version')).scalars().all() == [1, 2, 3, 4]
+        assert session.execute(text('SELECT version FROM schema_migrations ORDER BY version')).scalars().all() == [1, 2, 3, 4, 5]
         assert session.execute(text('SELECT COUNT(*) FROM discovery_runs')).scalar() == 0
 
 

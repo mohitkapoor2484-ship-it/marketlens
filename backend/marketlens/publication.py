@@ -87,11 +87,11 @@ def build_snapshot(service):
     discovery = {"provider": {}, "markets": [], "mode": service.settings.data_mode}
     if hasattr(service, "universe_revision"):
         source = discovery_view(service)
-        discovery = select(source, ("provider", "mode", "enabled", "presets", "maximum_selection"))
+        discovery = select(source, ("provider", "mode", "enabled", "presets", "maximum_selection", 'fundamentals'))
         discovery["markets"] = []
         for market in source["markets"]:
             item = select(market, ("market", "run_id", "created_at", "request", "version", "mode", "status", "groups", "errors", "last_attempt"))
-            item["rows"] = [select(row, ("symbol", "source_symbol", "name", "market", "kind", "exchange", "currency", "quote_price", "volume", "average_volume_3m", "approximate_turnover", "relative_volume_3m", "change_percent", "above_sma50", "above_sma200", "source_at", "fetched_at", "quote_status", "in_universe", "reason")) for row in market["rows"]]
+            item["rows"] = [select(row, ("symbol", "source_symbol", "name", "market", "kind", "exchange", "currency", "quote_price", "volume", "average_volume_3m", "approximate_turnover", "relative_volume_3m", "change_percent", "above_sma50", "above_sma200", "source_at", "fetched_at", "quote_status", "in_universe", "reason", 'market_cap', 'market_cap_currency', 'market_cap_source', 'market_cap_fetched_at', 'roe_percent', 'roe_basis', 'reported_quarter', 'fundamental_fetched_at', 'fundamental_status', 'fundamental_snapshot_id', 'analyst_rating', 'analyst_mean', 'analyst_count', 'analyst_source', 'analyst_fetched_at')) for row in market["rows"]]
             discovery["markets"].append(item)
     return {"schema": SCHEMA, "kind": "real_research_snapshot", "overview": {"scan": public_scan, "health": public_health, "paper": private_paper}, "discovery": discovery,
             "intraday": {"local_only": True, "mode": "unavailable", "notice": "Moomoo intraday monitoring is available in the local dashboard. Account-specific access and redistribution rights must be verified; Moomoo prices and gateway details are not uploaded."},

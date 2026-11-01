@@ -158,8 +158,19 @@ class IntradayBar(Base):
     __table_args__ = (UniqueConstraint("provider", "symbol", "start_at", "hash"),)
 
 
+class FundamentalSnapshot(Base):
+    __tablename__ = "fundamental_snapshots"
+    id = Column(String, primary_key=True)
+    symbol = Column(String, nullable=False, index=True)
+    fetched_at = Column(String, nullable=False)
+    status = Column(String, nullable=False)
+    payload = Column(JSON, nullable=False)
+    hash = Column(String, nullable=False)
+
+
 IMMUTABLE = ["datasets", "scans", "backtests", "signals", "paper_events", "rule_revisions", "evaluations", "universe_revisions", "discovery_runs"]
 IMMUTABLE += ["intraday_config_revisions", "intraday_attempts", "intraday_bars"]
+IMMUTABLE += ["fundamental_snapshots"]
 
 
 class Database:
@@ -191,7 +202,7 @@ class Database:
         # Migration 002 adds the local universe without rewriting migration 001.
         UniverseRevision.__table__.create(self.engine, checkfirst=True)
         DiscoveryRun.__table__.create(self.engine, checkfirst=True)
-        for model in (IntradayConfigRevision, IntradayAttempt, IntradayBar):
+        for model in (IntradayConfigRevision, IntradayAttempt, IntradayBar, FundamentalSnapshot):
             model.__table__.create(self.engine, checkfirst=True)
         with self.engine.begin() as con:
             if not con.execute(text("SELECT version FROM schema_migrations WHERE version=2")).first():
@@ -200,6 +211,8 @@ class Database:
                 con.execute(text("INSERT INTO schema_migrations(version, applied_at) VALUES (3, :now)"), {"now": stamp()})
             if not con.execute(text("SELECT version FROM schema_migrations WHERE version=4")).first():
                 con.execute(text("INSERT INTO schema_migrations(version, applied_at) VALUES (4, :now)"), {"now": stamp()})
+            if not con.execute(text("SELECT version FROM schema_migrations WHERE version=5")).first():
+                con.execute(text("INSERT INTO schema_migrations(version, applied_at) VALUES (5, :now)"), {"now": stamp()})
             if self.engine.dialect.name == "sqlite":
                 for table in IMMUTABLE:
                     for operation in ("UPDATE", "DELETE"):

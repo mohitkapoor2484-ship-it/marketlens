@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ```
 
-Open **http://127.0.0.1:8000**. Setup installs dependencies, builds the frontend and applies database migrations 001–004. The default source is Yahoo Finance daily history with Google News RSS headlines, with no account or API key required. Click Update research or let the enabled close-aware scheduler load observations; unavailable feeds remain unavailable. Set DATA_MODE=demo explicitly for fixed synthetic histories (2017–2025), labelled fixture results and no invented news. A new forward account starts at AUD 10,000 and zero genuine signals.
+Open **http://127.0.0.1:8000**. Setup installs dependencies, builds the frontend and applies database migrations 001–005. The default source is Yahoo Finance daily history with Google News RSS headlines, with no account or API key required. Click Update research or let the enabled close-aware scheduler load observations; unavailable feeds remain unavailable. Set DATA_MODE=demo explicitly for fixed synthetic histories (2017–2025), labelled fixture results and no invented news. A new forward account starts at AUD 10,000 and zero genuine signals.
 
 On a fresh clone, run `scripts/setup.ps1` first; dependencies, the frontend build, local data, reports and credentials are excluded from Git. For an already configured local checkout, `scripts/start.ps1` is sufficient. `Ctrl+C` stops the server. Keep one process using a given SQLite file. Don’t run CLI write operations alongside the server; use the dashboard’s Update Research button instead.
 
@@ -49,6 +49,8 @@ Open **US Intraday** for the optional Moomoo quote-only adapter. Install the opt
 Open **Discover Candidates** in the local dashboard. Choose **ASX** or **US**, select stocks/ETFs and liquidity filters, then **Discover now**. Review returned/provider match counts, source times, relative volume and trend context. Select up to 20 names and click **Add & analyse selected** to save them to your universe and download daily history. Inspect Market Scanner for actual setup scores and exclusions; discovery itself never generates paper signals.
 
 Discovery also runs after exchange-close research cycles. GitHub Pages displays the last uploaded results read-only through the existing five-minute publisher. It cannot initiate discovery on your computer. A request samples up to 250 names per asset type; it does not scan every listed security. Repeated identical requests are cached for 30 minutes, and provider failures retain the previous successful snapshot. See [discovery architecture, limits and data-use notice](docs/DISCOVERY.md).
+
+Company filters include market-cap ranges (AUD/USD millions), ROE percentage ranges and analyst consensus. They work on the displayed sample, including GitHub Pages; Discover now locally reruns the search. Unknown metrics fail active filters. Company profiles use a 24-hour cache and up to 20 new lookups per search by default; coverage counts and retrieval times are visible. See [company-filter assumptions](docs/DISCOVERY.md#company-filters).
 
 ## Connect actual data — Yahoo Finance + Google News RSS
 

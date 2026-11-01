@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     yahoo_request_interval_seconds: float = Field(2, ge=0, le=60)
     discovery_enabled: bool = True
     discovery_limit: int = Field(250, ge=25, le=250)
+    discovery_fundamental_budget: int = Field(20, ge=0, le=50)
     moomoo_opend_port: int = Field(11111, ge=1024, le=65535)
     enable_fundamentals: bool = False
     scheduler_enabled: bool = False
