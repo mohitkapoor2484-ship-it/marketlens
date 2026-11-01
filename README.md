@@ -17,7 +17,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
 ```
 
-Open **http://127.0.0.1:8000**. Setup installs dependencies, builds the frontend and applies database migrations 001–003. The default source is Yahoo Finance daily history with Google News RSS headlines, with no account or API key required. Click Update research or let the enabled close-aware scheduler load observations; unavailable feeds remain unavailable. Set DATA_MODE=demo explicitly for fixed synthetic histories (2017–2025), labelled fixture results and no invented news. A new forward account starts at AUD 10,000 and zero genuine signals.
+Open **http://127.0.0.1:8000**. Setup installs dependencies, builds the frontend and applies database migrations 001–004. The default source is Yahoo Finance daily history with Google News RSS headlines, with no account or API key required. Click Update research or let the enabled close-aware scheduler load observations; unavailable feeds remain unavailable. Set DATA_MODE=demo explicitly for fixed synthetic histories (2017–2025), labelled fixture results and no invented news. A new forward account starts at AUD 10,000 and zero genuine signals.
 
 On a fresh clone, run `scripts/setup.ps1` first; dependencies, the frontend build, local data, reports and credentials are excluded from Git. For an already configured local checkout, `scripts/start.ps1` is sufficient. `Ctrl+C` stops the server. Keep one process using a given SQLite file. Don’t run CLI write operations alongside the server; use the dashboard’s Update Research button instead.
 
@@ -39,6 +39,10 @@ Development: run the same API command, then `cd frontend; npm run dev` in a seco
 ## Edit the stock/ETF list
 
 In the local dashboard, open **Settings → Market universe**. Select a market and Stock/ETF type, enter a ticker (for example BHP, VAS.AX or TSLA), click **Add instrument**, then **Save universe**. Remove unwanted draft rows with the trash button. Changes persist immediately without restarting. Click **Refresh & upload now** to download new instruments and update the public snapshot. The public Settings view shows the list read-only. See [editor validation, paper protections and persistence](docs/UNIVERSE.md).
+
+## Optional US intraday monitor
+
+Open **US Intraday** for the optional Moomoo quote-only adapter. Install the optional SDK with `.\.venv\Scripts\python.exe -m pip install -r backend\moomoo-requirements.txt`, then open/sign into the separate Moomoo OpenD gateway locally. Press **Test Moomoo connection**, select US instruments, and save with automatic collection enabled only after access succeeds. Collection uses completed 5-minute bars, labelled by regular/pre-market/after-hours/overnight session. Yahoo daily research and the existing EOD paper account remain separate. Moomoo bars and gateway diagnostics stay local; the public site displays a local-only message. See [setup, connection tests, session assumptions and limits](docs/MOOMOO.md).
 
 ## Find new candidates
 

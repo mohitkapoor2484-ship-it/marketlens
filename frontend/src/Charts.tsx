@@ -1,7 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { ColorType, createChart, CrosshairMode, LineStyle, Time } from 'lightweight-charts';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, Area } from 'recharts';
-import { Data, money } from './api';
+import { Data, money, localTime } from './api';
+
+export function IntradayCandles({ bars }: { bars: Data[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current || !bars.length) return;
+    const chart = createChart(ref.current, { height: 380, layout: { background: { type: ColorType.Solid, color: '#111821' }, textColor: '#8b99ac' }, grid: { vertLines: { color: '#1c2633' }, horzLines: { color: '#1c2633' } }, timeScale: { timeVisible: true, secondsVisible: false }, localization: { timeFormatter: (t: any) => localTime(new Date(Number(t) * 1000).toISOString()) } });
+    const candles = chart.addCandlestickSeries({ upColor: '#5dd8b2', downColor: '#ec8698', borderVisible: false, wickUpColor: '#5dd8b2', wickDownColor: '#ec8698' });
+    candles.setData(bars.map(b => ({ time: (Date.parse(b.start_at) / 1000) as Time, open: b.open, high: b.high, low: b.low, close: b.close })));
+    candles.priceScale().applyOptions({ scaleMargins: { top: .08, bottom: .25 } });
+    const volume = chart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
+    volume.priceScale().applyOptions({ scaleMargins: { top: .82, bottom: 0 } });
+    volume.setData(bars.map(b => ({ time: (Date.parse(b.start_at) / 1000) as Time, value: b.volume, color: b.close >= b.open ? '#5dd8b23a' : '#ec86983a' })));
+    chart.applyOptions({ timeScale: { tickMarkFormatter: (t: any) => new Date(Number(t) * 1000).toLocaleTimeString('en-AU', { timeZone: 'Australia/Melbourne', hour: '2-digit', minute: '2-digit' }) } });
+    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, bars.length - 100), to: bars.length + 3 });
+    const ro = new ResizeObserver(entries => chart.applyOptions({ width: entries[0].contentRect.width }));
+    ro.observe(ref.current);
+    return () => { ro.disconnect(); chart.remove(); };
+  }, [bars]);
+  return <><div className="chart-toolbar"><span className="tag">5 MIN · USD · UNADJUSTED</span><span className="muted">Melbourne time · completed observations only</span></div><div ref={ref} aria-label="US five-minute candlestick chart with volume in Melbourne time"/><a className="chart-credit" href="https://www.tradingview.com/" target="_blank" rel="noreferrer">Charts by TradingView Lightweight Charts™</a></>;
+}
 
 export function Candles({ bars, currency }: { bars: Data[], currency: string }) {
   const ref = useRef<HTMLDivElement>(null);

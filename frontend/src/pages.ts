@@ -59,6 +59,7 @@ export async function pagesApi(path: string, method: string, body?: unknown): Pr
   if (route === '/overview') return structuredClone(data.overview);
   if (route === '/settings') return structuredClone(data.settings);
   if (route === '/scanner') return structuredClone(data.overview.scan);
+  if (route === '/intraday') return { local_only: true, mode: 'unavailable', notice: 'Moomoo US intraday data stays on the computer running MarketLens. Open US Intraday locally to test OpenD and enable collection. No Moomoo prices or gateway diagnostics are uploaded.' };
   if (route === '/discovery') return structuredClone(data.discovery || { mode: data.overview.scan.mode, markets: [], provider: {}, notice: published ? 'No discovery upload yet. Run Discover candidates in the local dashboard.' : 'Broad Yahoo discovery is unavailable in this fixture preview. Run the local engine in Yahoo mode.' });
   if (route === '/data/health') return structuredClone(data.overview.health);
   if (route === '/backtests') return structuredClone(data.backtests);

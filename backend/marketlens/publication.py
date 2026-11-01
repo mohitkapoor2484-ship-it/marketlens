@@ -94,6 +94,7 @@ def build_snapshot(service):
             item["rows"] = [select(row, ("symbol", "source_symbol", "name", "market", "kind", "exchange", "currency", "quote_price", "volume", "average_volume_3m", "approximate_turnover", "relative_volume_3m", "change_percent", "above_sma50", "above_sma200", "source_at", "fetched_at", "quote_status", "in_universe", "reason")) for row in market["rows"]]
             discovery["markets"].append(item)
     return {"schema": SCHEMA, "kind": "real_research_snapshot", "overview": {"scan": public_scan, "health": public_health, "paper": private_paper}, "discovery": discovery,
+            "intraday": {"local_only": True, "mode": "unavailable", "notice": "Moomoo intraday monitoring is available in the local dashboard. Account-specific access and redistribution rights must be verified; Moomoo prices and gateway details are not uploaded."},
             "settings": settings, "stocks": stocks, "backtests": [], "reports": []}
 
 

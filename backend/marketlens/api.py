@@ -22,6 +22,7 @@ from .paper import account_view, cancel, evaluate, replay
 from .service import Service
 from .strategies import STRATEGIES
 from .discovery import DiscoveryRequest, ImportRequest, discovery_view, import_candidates, run_discovery
+from .moomoo import IntradayConfigRequest, ProbeRequest, capture, intraday_config, intraday_view, save_intraday_config
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -58,7 +59,7 @@ def create_app(service=None):
     @asynccontextmanager
     async def lifespan(app):
         svc.initialise()
-        scheduler = start_scheduler(svc) if svc.settings.scheduler_enabled or svc.settings.publish_enabled else None
+        scheduler = start_scheduler(svc)
         app.state.service = svc
         yield
         if scheduler:
@@ -117,6 +118,31 @@ def create_app(service=None):
     @app.get("/api/scanner")
     def scanner():
         return svc.latest_scan()
+
+    @app.get("/api/intraday")
+    def intraday(symbol: str | None = None):
+        return intraday_view(svc, symbol)
+
+    @app.post("/api/intraday/probe")
+    def probe_moomoo(body: ProbeRequest):
+        return mutate(lambda: capture(svc, [body.symbol], kind='probe'))
+
+    @app.post("/api/intraday/refresh")
+    def refresh_intraday():
+        def work():
+            config = intraday_config(svc)
+            if not config['enabled']:
+                raise ValueError('Test Moomoo and enable collection before refreshing US bars')
+            return capture(svc, config['symbols'])
+        return mutate(work)
+
+    @app.put("/api/intraday/config")
+    def configure_intraday(body: IntradayConfigRequest):
+        from .universe import UniverseConflict
+        try:
+            return mutate(lambda: save_intraday_config(svc, body))
+        except UniverseConflict as exc:
+            raise HTTPException(409, str(exc)) from None
 
     @app.post("/api/scans")
     def scan():

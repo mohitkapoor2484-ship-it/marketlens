@@ -50,6 +50,8 @@ def test_public_export_excludes_accounts_secrets_jobs_and_saved_results(public_s
     assert 'portfolio' not in result['settings']['rules']
     assert 'costs' not in result['settings']['rules']
     assert result['backtests'] == result['reports'] == []
+    assert result['intraday']['local_only'] is True
+    assert 'bars' not in result['intraday'] and 'gateway' not in result['intraday'] and 'config' not in result['intraday']
     assert len(result['stocks']) == 14
     assert all(len(s['bars']) <= 300 for s in result['stocks'].values())
     assert result['overview']['scan']['mode'] == 'yahoo'
@@ -213,9 +215,10 @@ def test_five_minute_publisher_runs_independently_of_market_scheduler(public_stu
     public_stub.settings.scheduler_enabled = False
     monkeypatch.setattr('marketlens.jobs.BackgroundScheduler', Scheduler)
     start_scheduler(public_stub)
-    assert len(entries) == 1
-    assert entries[0][1]['minutes'] == 5
-    assert entries[0][1]['id'] == 'research-snapshot-upload'
+    by_id = {entry[1]['id']:entry[1] for entry in entries}
+    assert set(by_id) == {'moomoo-us-quotes','research-snapshot-upload'}
+    assert by_id['research-snapshot-upload']['minutes'] == 5
+    assert by_id['moomoo-us-quotes']['minutes'] == 5
 
 
 def test_local_manual_refresh_route_runs_cycle_and_keeps_origin_guard(service, monkeypatch):

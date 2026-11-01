@@ -28,6 +28,8 @@ class Service:
         self.universe_revision = 0
         from .discovery import YahooDiscovery
         self.discovery_provider = YahooDiscovery(settings)
+        from .moomoo import MoomooBridge
+        self.moomoo_provider = MoomooBridge(settings)
 
     def instrument(self, symbol):
         found = next((x for x in self.universe if x.symbol == symbol), None)
@@ -40,6 +42,8 @@ class Service:
         initial = AppRules.model_validate(json.loads(self.settings.initial_rules_path.read_text(encoding="utf-8"))) if self.settings.initial_rules_path else None
         self.db.migrate(initial)
         load_universe(self)
+        from .moomoo import initialise_intraday
+        initialise_intraday(self)
         with self.db.session() as s:
             if not s.get(PaperAccount, "forward"):
                 config = rules(s).model_dump()
@@ -153,7 +157,7 @@ class Service:
                 rows.append({"symbol": inst.symbol, "market": inst.market, "last_session": last, "expected_session": expected, "fetched_at": ds.fetched_at if ds else None, "status": "synthetic" if ds and ds.mode == "demo" else "unavailable" if ds is None else "stale" if last < expected else "available", "missing_sessions": len(ds.payload.get("missing_sessions", [])) if ds else None, "news_status": ds.payload.get("news_status") if ds else "unavailable", "dataset_id": ds.id if ds else None})
             jobs = [{"id": j.id, "key": j.key, "started_at": j.started_at, "finished_at": j.finished_at, "status": j.status, "detail": j.detail} for j in s.query(Job).order_by(Job.id.desc()).limit(50)]
             fx = latest_dataset(s, "USDAUD.FOREX", self.settings.data_mode)
-        return {"mode": self.settings.data_mode, "provider": PROVIDER_INFO[self.settings.data_mode], "symbols": rows, "jobs": jobs, "fx": {"last_date": fx.payload["rates"][-1]["date"], "fetched_at": fx.fetched_at} if fx else None, "scheduler_enabled": self.settings.scheduler_enabled, "provider_lag_minutes": self.settings.provider_lag_minutes, "key_configured": bool(self.settings.eodhd_api_key.get_secret_value()) if self.settings.data_mode == "eodhd" else False, "key_required": self.settings.data_mode == "eodhd", "intraday": "Disabled: no licensed intraday adapter configured"}
+        return {"mode": self.settings.data_mode, "provider": PROVIDER_INFO[self.settings.data_mode], "symbols": rows, "jobs": jobs, "fx": {"last_date": fx.payload["rates"][-1]["date"], "fetched_at": fx.fetched_at} if fx else None, "scheduler_enabled": self.settings.scheduler_enabled, "provider_lag_minutes": self.settings.provider_lag_minutes, "key_configured": bool(self.settings.eodhd_api_key.get_secret_value()) if self.settings.data_mode == "eodhd" else False, "key_required": self.settings.data_mode == "eodhd", "intraday": "EOD strategy engine. Optional Moomoo US quote monitor is local only and requires a successful access test"}
 
     def scan(self, market=None, record_forward=True):
         def work():

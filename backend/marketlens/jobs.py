@@ -87,6 +87,10 @@ def cycle_checked(service, market):
 
 def start_scheduler(service):
     scheduler = BackgroundScheduler(timezone="Australia/Melbourne", job_defaults={"coalesce": True, "max_instances": 1, "misfire_grace_time": 600})
+    # Cheap no-op while disabled; enabling through the API needs no restart.
+    from .moomoo import intraday_tick
+    scheduler.add_job(intraday_tick, "interval", minutes=5, args=[service], id="moomoo-us-quotes",
+                      next_run_time=now_utc() + timedelta(minutes=5))
     if service.settings.scheduler_enabled:
         scheduler.add_job(tick, "interval", minutes=10, args=[service], id="exchange-close-catchup", next_run_time=now_utc() + timedelta(seconds=10))
     if service.settings.publish_enabled:
