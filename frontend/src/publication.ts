@@ -14,7 +14,8 @@ export class PublishedResearch {
     if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) || !/^[A-Za-z0-9_-]+$/.test(branch)) throw new Error('Invalid public research repository');
     this.repository = repository;
     this.branch = branch;
-    this.fetcher = fetcher;
+    // Native browser fetch needs Window as its receiver, not this client object.
+    this.fetcher = fetcher.bind(globalThis);
   }
 
   async load(force = false): Promise<Json> {

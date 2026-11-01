@@ -19,6 +19,11 @@ const client = new PublishedResearch('owner/repo', 'research-data', fetcher);
 const first = await client.load();
 assert.equal(first.overview.scan.mode, 'yahoo');
 assert.equal(reads, 1);
+const receiverCheck = new PublishedResearch('owner/repo', 'research-data', function(url) {
+  assert.equal(this, globalThis, 'Browser fetch must retain its global receiver');
+  return Promise.resolve(new Response(url.includes('/latest.json') ? JSON.stringify(manifest) : body));
+});
+await receiverCheck.load();
 manifest = {...manifest, published_at: new Date().toISOString()};
 await client.load(true);
 assert.equal(reads, 1, 'Unchanged datasets must not be downloaded on every heartbeat');
