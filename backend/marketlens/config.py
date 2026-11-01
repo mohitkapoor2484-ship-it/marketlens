@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     eodhd_daily_budget: int = Field(20, ge=1)
     enable_news: bool = True
     yahoo_request_interval_seconds: float = Field(2, ge=0, le=60)
+    discovery_enabled: bool = True
+    discovery_limit: int = Field(250, ge=25, le=250)
     enable_fundamentals: bool = False
     scheduler_enabled: bool = False
     publish_enabled: bool = False

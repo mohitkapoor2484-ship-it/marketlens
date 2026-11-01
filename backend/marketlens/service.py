@@ -26,6 +26,8 @@ class Service:
         self.provider = {"demo": DemoProvider, "eodhd": lambda: EODHDProvider(settings, db), "yahoo": lambda: YahooProvider(settings, db)}[settings.data_mode]()
         self.universe = validate_universe(json.loads(settings.universe_path.read_text(encoding="utf-8")))
         self.universe_revision = 0
+        from .discovery import YahooDiscovery
+        self.discovery_provider = YahooDiscovery(settings)
 
     def instrument(self, symbol):
         found = next((x for x in self.universe if x.symbol == symbol), None)
@@ -117,18 +119,20 @@ class Service:
             log.error("Job %s failed: %s", key, detail)
             raise
 
-    def refresh(self, market=None):
+    def refresh(self, market=None, symbols=None):
         end = now_utc().date().isoformat()
         start = (now_utc().date() - timedelta(days=int(self.settings.history_years * 365.25))).isoformat()
         def load():
             successful, failed = [], []
-            if self.settings.data_mode == "demo" or any(i.market == "US" for i in self.universe if market is None or i.market == market):
+            if (symbols is None and (self.settings.data_mode == "demo" or any(i.market == "US" for i in self.universe if market is None or i.market == market))) or symbols is not None and "USDAUD.FOREX" in symbols:
                 try:
                     self.job("data:USDAUD.FOREX", lambda: {"dataset_id": self.save_dataset("USDAUD.FOREX", self.provider.fx(start, end))})
                 except Exception:
                     failed.append("USDAUD.FOREX")
             for inst in self.universe:
                 if market and inst.market != market:
+                    continue
+                if symbols is not None and inst.symbol not in symbols:
                     continue
                 try:
                     cutoff = latest_closed(inst.market) if self.settings.data_mode != "demo" else "2025-12-31"

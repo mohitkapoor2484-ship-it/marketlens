@@ -82,7 +82,18 @@ def build_snapshot(service):
                 "strategies": STRATEGIES, "provider": PROVIDER_INFO[service.settings.data_mode],
                 "environment": {"mode": service.settings.data_mode, "hosting": "read-only published research"},
                 "notice": "Only selected market research is published. Portfolio, orders, ledger, reports, saved backtests and environment settings remain local."}
-    return {"schema": SCHEMA, "kind": "real_research_snapshot", "overview": {"scan": public_scan, "health": public_health, "paper": private_paper},
+    from .discovery import discovery_view
+    # Explicit discovery allowlist: no universe obligation reasons or account state.
+    discovery = {"provider": {}, "markets": [], "mode": service.settings.data_mode}
+    if hasattr(service, "universe_revision"):
+        source = discovery_view(service)
+        discovery = select(source, ("provider", "mode", "enabled", "presets", "maximum_selection"))
+        discovery["markets"] = []
+        for market in source["markets"]:
+            item = select(market, ("market", "run_id", "created_at", "request", "version", "mode", "status", "groups", "errors", "last_attempt"))
+            item["rows"] = [select(row, ("symbol", "source_symbol", "name", "market", "kind", "exchange", "currency", "quote_price", "volume", "average_volume_3m", "approximate_turnover", "relative_volume_3m", "change_percent", "above_sma50", "above_sma200", "source_at", "fetched_at", "quote_status", "in_universe", "reason")) for row in market["rows"]]
+            discovery["markets"].append(item)
+    return {"schema": SCHEMA, "kind": "real_research_snapshot", "overview": {"scan": public_scan, "health": public_health, "paper": private_paper}, "discovery": discovery,
             "settings": settings, "stocks": stocks, "backtests": [], "reports": []}
 
 

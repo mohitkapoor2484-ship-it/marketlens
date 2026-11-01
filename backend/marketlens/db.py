@@ -111,13 +111,24 @@ class Usage(Base):
     credits = Column(Integer, nullable=False)
 
 
+class DiscoveryRun(Base):
+    __tablename__ = "discovery_runs"
+    id = Column(Integer, primary_key=True)
+    created_at = Column(String, nullable=False)
+    mode = Column(String, nullable=False, index=True)
+    market = Column(String, nullable=False)
+    request_hash = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False)
+    payload = Column(JSON, nullable=False)
+
+
 class Watch(Base):
     __tablename__ = "watchlist"
     symbol = Column(String, primary_key=True)
     added_at = Column(String, nullable=False)
 
 
-IMMUTABLE = ["datasets", "scans", "backtests", "signals", "paper_events", "rule_revisions", "evaluations", "universe_revisions"]
+IMMUTABLE = ["datasets", "scans", "backtests", "signals", "paper_events", "rule_revisions", "evaluations", "universe_revisions", "discovery_runs"]
 
 
 class Database:
@@ -148,9 +159,12 @@ class Database:
                 con.execute(text("INSERT INTO schema_migrations(version, applied_at) VALUES (1, :now)"), {"now": stamp()})
         # Migration 002 adds the local universe without rewriting migration 001.
         UniverseRevision.__table__.create(self.engine, checkfirst=True)
+        DiscoveryRun.__table__.create(self.engine, checkfirst=True)
         with self.engine.begin() as con:
             if not con.execute(text("SELECT version FROM schema_migrations WHERE version=2")).first():
                 con.execute(text("INSERT INTO schema_migrations(version, applied_at) VALUES (2, :now)"), {"now": stamp()})
+            if not con.execute(text("SELECT version FROM schema_migrations WHERE version=3")).first():
+                con.execute(text("INSERT INTO schema_migrations(version, applied_at) VALUES (3, :now)"), {"now": stamp()})
             if self.engine.dialect.name == "sqlite":
                 for table in IMMUTABLE:
                     for operation in ("UPDATE", "DELETE"):

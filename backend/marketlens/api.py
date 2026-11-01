@@ -21,6 +21,7 @@ from .jobs import cycle, start_scheduler
 from .paper import account_view, cancel, evaluate, replay
 from .service import Service
 from .strategies import STRATEGIES
+from .discovery import DiscoveryRequest, ImportRequest, discovery_view, import_candidates, run_discovery
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -120,6 +121,23 @@ def create_app(service=None):
     @app.post("/api/scans")
     def scan():
         return mutate(svc.scan)
+
+    @app.get("/api/discovery")
+    def discovery():
+        # Immutable saved snapshots remain readable during long source downloads.
+        return discovery_view(svc)
+
+    @app.post("/api/discovery")
+    def discover(body: DiscoveryRequest):
+        return mutate(lambda: run_discovery(svc, body))
+
+    @app.post("/api/discovery/import")
+    def add_discovered(body: ImportRequest):
+        from .universe import UniverseConflict
+        try:
+            return mutate(lambda: import_candidates(svc, body))
+        except UniverseConflict as exc:
+            raise HTTPException(409, str(exc)) from None
 
     @app.post("/api/data/refresh")
     def refresh():

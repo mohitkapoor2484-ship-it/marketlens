@@ -60,6 +60,21 @@ def test_demo_export_cannot_impersonate_actual_data(service):
         build_snapshot(service)
 
 
+def test_discovery_publication_keeps_only_research_allowlist(public_stub):
+    from marketlens.db import DiscoveryRun
+    public_stub.universe_revision = public_stub.latest_scan()['universe_revision']
+    payload = {'rows': [{'symbol':'TEST.AU', 'source_at':stamp(), 'market':'ASX',
+                         'credentials':'DO-NOT-PUBLISH', 'instrument':{'membership_evidence':'PRIVATE'},
+                         'account_id':'DO-NOT-PUBLISH'}], 'errors':[], 'groups':[]}
+    with public_stub.db.session() as session:
+        session.add(DiscoveryRun(created_at=stamp(), mode='yahoo', market='ASX', request_hash='explicit-test', status='success', payload=payload))
+    exported = build_snapshot(public_stub)
+    assert exported['discovery']['markets'][0]['rows'][0]['symbol'] == 'TEST.AU'
+    assert 'DO-NOT-PUBLISH' not in canonical(exported)
+    assert 'membership_evidence' not in canonical(exported['discovery'])
+    assert 'universe_revision' not in exported['discovery']
+
+
 def test_mixed_data_mode_is_rejected(public_stub):
     public_stub.latest_scan()['candidates'][0]['mode'] = 'demo'
     with pytest.raises(ValueError, match='Mixed'):

@@ -108,11 +108,13 @@ def test_migration_upgrades_existing_version_one_database(universe_service):
     svc = universe_service
     with svc.db.engine.begin() as connection:
         connection.execute(text('DROP TABLE universe_revisions'))
-        connection.execute(text('DELETE FROM schema_migrations WHERE version=2'))
+        connection.execute(text('DROP TABLE discovery_runs'))
+        connection.execute(text('DELETE FROM schema_migrations WHERE version>=2'))
     svc.initialise()
     with svc.db.session() as session:
         assert session.query(UniverseRevision).count() == 1
-        assert session.execute(text('SELECT version FROM schema_migrations ORDER BY version')).scalars().all() == [1, 2]
+        assert session.execute(text('SELECT version FROM schema_migrations ORDER BY version')).scalars().all() == [1, 2, 3]
+        assert session.execute(text('SELECT COUNT(*) FROM discovery_runs')).scalar() == 0
 
 
 def test_etfs_are_included_in_cached_scans_and_edits_create_no_forward_signals(universe_service):

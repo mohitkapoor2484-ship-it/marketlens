@@ -22,6 +22,16 @@ def _cycle(service, market=None):
     settled = service.job("paper:evaluate", lambda: evaluate(service))
     scan = service.scan()
     report = service.job("report:daily", lambda: service.report())
+    discovery = []
+    if service.settings.discovery_enabled and service.settings.data_mode == "yahoo":
+        from .discovery import DiscoveryRequest, run_discovery
+        for target in ([market] if market else ["ASX", "US"]):
+            try:
+                found = run_discovery(service, DiscoveryRequest(market=target, limit=service.settings.discovery_limit))
+                discovery.append({"market": target, "run_id": found["run_id"], "status": found["status"]})
+            except Exception:
+                discovery.append({"market": target, "status": "failed"})
+                log.error("Discovery unavailable for %s; existing research retained", target)
     publication = None
     if service.settings.publish_enabled:
         from .publication import upload_tick
@@ -29,7 +39,7 @@ def _cycle(service, market=None):
             publication = upload_tick(service)
         except Exception:
             publication = {"status": "failed", "notice": "Research completed; upload failed. Inspect publication status. Previous website snapshot retained."}
-    return {"refresh": refreshed, "paper": settled, "scan_id": scan["scan_id"], "report": report, "publication": publication}
+    return {"refresh": refreshed, "paper": settled, "scan_id": scan["scan_id"], "report": report, "discovery": discovery, "publication": publication}
 
 
 def tick(service):
