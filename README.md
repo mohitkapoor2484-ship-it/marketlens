@@ -2,9 +2,9 @@
 
 A local Windows-first ASX/US end-of-day research terminal. Python/FastAPI, pandas/NumPy, Backtrader event-driven historical research, SQLite/SQLAlchemy and React/TypeScript/Tailwind with Lightweight Charts and equity charts. **Research and paper simulation only. There is no broker integration, live order submission, or broker credential support.**
 
-## GitHub Pages preview
+## GitHub Pages with a local research publisher
 
-Open [the interactive Pages preview](https://mohitkapoor2484-ship-it.github.io/marketlens/). It uses explicit synthetic fixture snapshots. Scanner filters, charts, a saved historical experiment, replay inspection and downloads work without a server; new scans, backtests, scheduling and genuine forward paper trading require the Python service below. See [Pages deployment and limitations](docs/GITHUB_PAGES.md).
+Open [the published research dashboard](https://mohitkapoor2484-ship-it.github.io/marketlens/). The local Python engine can upload selected actual research every five minutes; the website checks for new uploads every minute. The local **Refresh & upload now** button also performs an ad hoc source refresh. Portfolios, paper ledgers, saved backtests and secrets stay local. The PC must remain running for new uploads. See [hybrid setup, public fields and freshness](docs/HYBRID.md). The separate fixture exporter remains explicitly available for demonstrations and isolation tests.
 
 ## Start on Windows
 
@@ -47,7 +47,7 @@ Read [provider contracts and limitations](docs/PROVIDERS.md). The default `DATA_
 5. Google News RSS stores only actual titles, publisher names, links, publication and retrieval times. It does not infer sentiment. Successful feeds are cached for 30 minutes inside a running process; scheduled EOD cycles request fresh news. Failed, undated or future-dated items remain unavailable. Article bodies are not copied.
 6. Source failures never switch to synthetic data or another provider. Rate limits are shown as failures; no proxy rotation or access-control bypass is used. Market cap is unavailable in the Yahoo chart adapter; enabling a minimum-cap filter excludes unknown values rather than inventing them. Intraday remains disabled.
 
-Yahoo's data is intended for personal research. This local configuration does not confer public redistribution rights. **The public GitHub Pages workflow continues to export only isolated synthetic fixtures**, never this local database's Yahoo prices, portfolio, signals or news. The [Pages guide](docs/GITHUB_PAGES.md) explains the distinction. An always-on private research service requires a separately hosted Python backend with appropriate access controls.
+Yahoo's data is intended for personal research. This local configuration does not confer public redistribution rights. The fixture exporter remains isolated. The optional hybrid publisher exports only explicitly allowlisted public research; it never exports the database, accounts, private signals or credentials. The [Pages guide](docs/GITHUB_PAGES.md) explains the distinction. An always-on private research service requires a separately hosted Python backend with appropriate access controls.
 
 The legacy EODHD adapter remains available only when explicitly selected with `DATA_MODE=eodhd` and a valid key/entitlement. Its quotas and charges are documented in [PROVIDERS.md](docs/PROVIDERS.md). It is never a fallback from Yahoo.
 

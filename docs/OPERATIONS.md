@@ -20,3 +20,7 @@ Future PostgreSQL path:
 6. Add actual user authentication, authorization, TLS, trusted hosts/origins, backups, monitoring and a data redistribution licence before exposing the app beyond localhost. Local origin/host checks are not production authentication. Never add a broker execution route to the paper package.
 
 Docker Compose is optional, binds only localhost, persists the database in a named volume and reports in a mount, and uses environment secrets from the ignored `.env`. Build the frontend on the host before building the image. A hosted scheduler requires always-on compute; a sleeping Windows computer cannot produce signals during downtime, and the app never retroactively counts them as forward evidence.
+
+## Hybrid public research uploads
+
+Publication is an explicit opt-in independent of source scheduling. A five-minute job and successful EOD/manual cycles serialize against the same service operation lock. An atomic GitHub manifest references immutable content; a failed upload does not advance the last successful publication time. State lives in ignored data/publish-state.json and can recover from the remote manifest. Only allowlisted market research is exported, never account/ledger/backtest/secret data. See HYBRID.md for source frequency, local-versus-public controls and restart procedures.

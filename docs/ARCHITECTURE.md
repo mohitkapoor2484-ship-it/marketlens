@@ -12,3 +12,5 @@ Modules: `providers` → `research` → `strategies`; `execution` is a pure simu
 Trust boundaries: ingestion time is server UTC; exchange bars have a separate session and close timestamp; Melbourne display uses IANA timezone/DST. Real data failures remain failures. New observations never rewrite an older dataset, signal, event, or backtest. Auditable updates append rows. Synthetic data is fixed in time and prominently labelled. Forward evidence requires time to elapse and cannot be completed during implementation.
 
 SQLite is the initial target, one API process and one in-process scheduler protected by a process lock and transactional writes. A PostgreSQL deployment requires the migration and worker changes described in `OPERATIONS.md`; do not run multiple schedulers against SQLite.
+
+Hybrid publication adds a five-minute, serialized uploader of allowlisted research to a dedicated public data branch. The browser verifies a manifest and immutable data commit; upload heartbeats do not rerun market scans or alter paper evidence. Account, ledger, backtest and secret data remain local. See HYBRID.md.

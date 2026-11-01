@@ -14,7 +14,7 @@
 
 `ENABLE_NEWS=true` selects [Google News RSS](https://news.google.com/rss). No Google API key is required. This public RSS interface is not a contracted market-news API. Only actual titles, publisher names, links, pubDate values and retrieval timestamps are saved. Article bodies and sentiment are never invented. Future/undated/invalid items are rejected; headlines are limited to the last seven days. Duplicate links collapse. Successful feeds are cached for 30 minutes within a running process; EOD cycles request new news as needed. Empty feeds and failures are unavailable. Matches can be ambiguous, and RSS timestamps can differ from an article's original publication time.
 
-**Personal use is distinct from public redistribution.** No source choice confers permission to publish raw market data. The public Pages workflow remains fixture-only and cannot export the local Yahoo database, portfolios, signals or headlines. Actual observations are used in the local/private research engine. External deployment requires appropriate access controls and data-display rights.
+**Personal use is distinct from public redistribution.** No source choice confers permission to publish raw market data. The fixture exporter stays isolated. An explicitly enabled hybrid publisher can publish selected market research, chart observations and headline links under the owner's instruction; it excludes the local database, accounts, paper ledger, saved backtests and credentials. Enable public display only where your upstream terms permit it; no data-display or redistribution rights are granted by this software. See HYBRID.md.
 
 ## Explicit demonstration mode
 

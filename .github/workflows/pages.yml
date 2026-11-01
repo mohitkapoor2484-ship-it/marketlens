@@ -39,7 +39,13 @@ jobs:
         run: npm ci
       - name: Build for the project URL
         working-directory: frontend
+        env:
+          VITE_SNAPSHOT_REPOSITORY: ${{ github.repository }}
+          VITE_SNAPSHOT_BRANCH: research-data
         run: npm run build:pages
+      - name: Check immutable published-snapshot reader
+        working-directory: frontend
+        run: node scripts/test-publication.mjs
       - name: Verify Pages artifact paths and fixture isolation
         working-directory: frontend
         run: node scripts/check-pages.mjs

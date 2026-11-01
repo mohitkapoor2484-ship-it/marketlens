@@ -1,36 +1,32 @@
-# GitHub Pages and the Python research service
+# GitHub Pages research dashboard
 
-The public preview is https://mohitkapoor2484-ship-it.github.io/marketlens/.
+The public dashboard is https://mohitkapoor2484-ship-it.github.io/marketlens/.
 
-GitHub Pages serves static HTML, JavaScript, CSS and generated fixture JSON. It does not run FastAPI, Python background jobs or SQLite. Publishing this repository's root through the legacy Jekyll workflow displays documentation rather than building the React application. The dedicated `pages.yml` workflow builds the frontend with `/marketlens/` as its asset base and deploys `frontend/dist-pages` using GitHub Actions.
+The production Pages build is a read-only viewer of actual research uploaded by the local Python engine. It reads a manifest from the public research-data branch, downloads data by immutable commit ID and checks its SHA-256 before displaying it. Source-session and retrieval times remain distinct from upload time. No API on the home computer is publicly exposed. See [HYBRID.md](HYBRID.md) for setup, five-minute publishing, public fields and recovery.
 
-The Pages build is an **explicit synthetic fixture preview**. It supports scanner filtering/sorting, stock candlesticks and indicators, inspecting a saved fixture experiment (including sensitivity/walk-forward results), downloading its JSON/CSV, viewing the separately labelled fixture replay, reports, data-health/settings inspection and browser-local watchlists. It never requests `/api` on the Pages host, never uses provider keys, and never counts a replay as forward evidence. New engine jobs and rule edits are disabled in this preview. Forward evidence remains zero.
+The local **Refresh & upload now** button requests sources, evaluates paper orders, scans, writes local reports and uploads. The public **Check latest upload** button reads an existing upload; it cannot remotely command the PC. The website also checks every minute. The PC must remain awake and connected for new uploads. A stale heartbeat is clearly shown, and failures retain the last verified snapshot without falling back to fixtures.
 
-Every build exports from a newly created in-memory database with an explicitly selected fixture provider, blank API key, disabled news/fundamentals, disabled scheduler and temporary report directory. Existing user databases, accounts, reports and environment-file values are not used for publication. Generated fixture files are ignored by Git and included only in the Pages artifact. An unavailable real API never silently switches to this preview: the `pages` build mode explicitly selects it; ordinary local builds still use FastAPI.
+Paper accounts, portfolio settings, original signals, orders, outcomes, saved backtests, reports, local watchlists, environment values and credentials are excluded. Private views say local only. Publication of market observations or headline links requires appropriate source/display rights; this software grants none.
 
-To use the complete research platform locally:
+## Code deployment and uploads
 
-```powershell
-git clone https://github.com/mohitkapoor2484-ship-it/marketlens.git
-cd marketlens
-powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\start.ps1
-```
+Repository Settings -> Pages -> Source must be **GitHub Actions**. Pushes to main run backend tests, generate isolated demonstration fixtures for isolation checks, build the Pages frontend with VITE_SNAPSHOT_REPOSITORY and VITE_SNAPSHOT_BRANCH, run browser-reader/artifact checks and deploy frontend/dist-pages. These public repository names are not credentials. The compiled app selects the actual-research reader; the included test fixtures are not its fallback data source.
 
-Then open http://127.0.0.1:8000. Use DATA_MODE=yahoo and ENABLE_NEWS=true in the local ignored `.env`; the full engine then uses Yahoo Finance and Google News RSS without a paid account or API key. Enable local schedules as described in README. The public Pages preview intentionally keeps fixture-only publication under the sources’ personal-use terms. No provider key belongs in Pages, JavaScript, GitHub repository variables prefixed `VITE_`, or a published artifact.
+Five-minute uploads update only the separate data branch through GitHub's Git database API. They do not rebuild the frontend or change main. The browser checks an atomic manifest and immutable data reference, so it cannot mix a new header with old chart data. GitHub caching/propagation may delay visibility; there is no guaranteed streaming or intraday coverage.
 
-For an always-on full hosted service, deploy the Python API, persistent database and scheduler to a Python-capable server with authentication, TLS, appropriate origin/host controls and a suitable market-data licence. The current localhost security policy must not simply be removed to expose an unauthenticated API. This Pages repair does not provision such a server or create actual forward signals.
+## Explicit fixture demonstration
 
-To rebuild the preview manually on Windows:
+For an offline/fixture preview, omit VITE_SNAPSHOT_REPOSITORY:
 
 ```powershell
 .\.venv\Scripts\python.exe -X utf8 scripts\export_pages.py
 cd frontend
-npm ci
 npm run build:pages
 npm run preview -- --mode pages --port 4173
 ```
 
-Visit http://127.0.0.1:4173/marketlens/. To return to the normal local API build, run `npm run build`, then start the Python service. The normal build continues to write `frontend/dist`, while the preview writes `frontend/dist-pages`. The default build does not change its `/` base or API behaviour.
+Open http://127.0.0.1:4173/marketlens/. The fixture exporter uses a newly created in-memory demo database, blank key, disabled source requests and scheduling, and temporary reports. It never reads the user's database or publishes actual account data. Fixture results and replays are labelled and never count as forward evidence. Artifact tests continue to enforce that isolation independently of the actual research publisher.
 
-In repository Settings → Pages, **Source must be GitHub Actions**, rather than a branch/root folder. Pushes to main then install dependencies, run tests, generate fixture exports, build, upload the Pages artifact and deploy. Check the deployment workflow before concluding that a new version is live. The existing repository and Pages visibility are preserved.
+## Full local app
+
+Run scripts/setup.ps1 once, then scripts/start.ps1. Open http://127.0.0.1:8000. The ordinary frontend build writes frontend/dist and uses the local FastAPI /api endpoints. The Pages build writes frontend/dist-pages and has the /marketlens/ base. Do not upload .env, SQLite, data/, reports/ or credentials to either artifact.

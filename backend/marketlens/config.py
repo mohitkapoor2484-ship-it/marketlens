@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     yahoo_request_interval_seconds: float = Field(2, ge=0, le=60)
     enable_fundamentals: bool = False
     scheduler_enabled: bool = False
+    publish_enabled: bool = False
+    publish_repository: str = Field("mohitkapoor2484-ship-it/marketlens", pattern=r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+    publish_branch: str = Field("research-data", pattern=r"^[A-Za-z0-9_-]+$")
+    publish_interval_minutes: int = Field(5, ge=5, le=1440)
+    publish_github_token: SecretStr = SecretStr("")
+    publish_state_path: Path = ROOT / "data/publish-state.json"
     provider_lag_minutes: int = Field(180, ge=30, le=1440)
     history_years: int = Field(8, ge=1, le=15)
     report_dir: Path = ROOT / "reports"

@@ -22,7 +22,14 @@ def _cycle(service, market=None):
     settled = service.job("paper:evaluate", lambda: evaluate(service))
     scan = service.scan()
     report = service.job("report:daily", lambda: service.report())
-    return {"refresh": refreshed, "paper": settled, "scan_id": scan["scan_id"], "report": report}
+    publication = None
+    if service.settings.publish_enabled:
+        from .publication import upload_tick
+        try:
+            publication = upload_tick(service)
+        except Exception:
+            publication = {"status": "failed", "notice": "Research completed; upload failed. Inspect publication status. Previous website snapshot retained."}
+    return {"refresh": refreshed, "paper": settled, "scan_id": scan["scan_id"], "report": report, "publication": publication}
 
 
 def tick(service):
@@ -70,6 +77,11 @@ def cycle_checked(service, market):
 
 def start_scheduler(service):
     scheduler = BackgroundScheduler(timezone="Australia/Melbourne", job_defaults={"coalesce": True, "max_instances": 1, "misfire_grace_time": 600})
-    scheduler.add_job(tick, "interval", minutes=10, args=[service], id="exchange-close-catchup", next_run_time=now_utc() + timedelta(seconds=10))
+    if service.settings.scheduler_enabled:
+        scheduler.add_job(tick, "interval", minutes=10, args=[service], id="exchange-close-catchup", next_run_time=now_utc() + timedelta(seconds=10))
+    if service.settings.publish_enabled:
+        from .publication import upload_tick
+        scheduler.add_job(upload_tick, "interval", minutes=service.settings.publish_interval_minutes, args=[service],
+                          id="research-snapshot-upload", next_run_time=now_utc() + timedelta(seconds=20))
     scheduler.start()
     return scheduler

@@ -1,4 +1,5 @@
 import { pagesApi, previewDownloadUrl } from './pages';
+export { refreshStaticSnapshot } from './pages';
 export type Data = Record<string, any>;
 export const isPagesPreview = import.meta.env.MODE === 'pages';
 export const downloadUrl = (path: string) => isPagesPreview ? previewDownloadUrl(path) : `/api${path}`;

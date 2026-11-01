@@ -52,7 +52,7 @@ def create_app(service=None):
     @asynccontextmanager
     async def lifespan(app):
         svc.initialise()
-        scheduler = start_scheduler(svc) if svc.settings.scheduler_enabled else None
+        scheduler = start_scheduler(svc) if svc.settings.scheduler_enabled or svc.settings.publish_enabled else None
         app.state.service = svc
         yield
         if scheduler:
@@ -104,8 +104,9 @@ def create_app(service=None):
 
     @app.get("/api/overview")
     def overview():
+        from .publication import publication_status
         scan = svc.latest_scan()
-        return {"scan": scan, "paper": account_view(svc), "health": svc.data_health()}
+        return {"scan": scan, "paper": account_view(svc), "health": svc.data_health(), "publication": publication_status(svc)}
 
     @app.get("/api/scanner")
     def scanner():
@@ -122,6 +123,25 @@ def create_app(service=None):
     @app.post("/api/jobs/cycle")
     def run_cycle():
         return mutate(lambda: cycle(svc))
+
+    @app.get("/api/publication")
+    def publication():
+        from .publication import publication_status
+        return publication_status(svc)
+
+    @app.post("/api/publication/upload")
+    def upload():
+        from .publication import upload_tick
+        return mutate(lambda: upload_tick(svc))
+
+    @app.post("/api/publication/refresh")
+    def refresh_and_upload():
+        # The local-only API can perform source requests. The public site cannot.
+        def run():
+            if svc.settings.data_mode == "yahoo":
+                svc.provider.news.cache.clear()
+            return cycle(svc)
+        return mutate(run)
 
     @app.get("/api/data/health")
     def health():

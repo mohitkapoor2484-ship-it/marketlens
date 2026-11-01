@@ -1,8 +1,11 @@
 /** Explicit static-fixture adapter. Never used as a fallback for a failed real API. */
 import type { Data } from './api';
+import { PublishedResearch } from './publication';
 
 const root = `${import.meta.env.BASE_URL}pages-data/`;
 let snapshotPromise: Promise<Data> | undefined;
+const repository = import.meta.env.VITE_SNAPSHOT_REPOSITORY;
+const published = repository ? new PublishedResearch(repository, import.meta.env.VITE_SNAPSHOT_BRANCH || 'research-data') : undefined;
 const engineMessage = 'GitHub Pages serves this synthetic preview without a Python engine. Run scripts/start.ps1 locally for scans, new backtests, rule edits, scheduling and forward paper trading. See the GitHub Pages guide linked above.';
 
 async function jsonFile(path: string): Promise<Data> {
@@ -10,7 +13,12 @@ async function jsonFile(path: string): Promise<Data> {
   if (!response.ok) throw new Error(`Preview data could not be loaded (${response.status}). Refresh after the Pages deployment finishes.`);
   return response.json();
 }
-function snapshot() { return snapshotPromise ??= jsonFile('snapshot.json'); }
+function snapshot() { return published ? published.load() : snapshotPromise ??= jsonFile('snapshot.json'); }
+export async function refreshStaticSnapshot() {
+  if (published) return published.load(true);
+  snapshotPromise = undefined;
+  return snapshot();
+}
 function watchlist(): Data[] {
   try {
     const value = JSON.parse(localStorage.getItem('marketlens:pages:watchlist:v1') || '[]');
@@ -54,9 +62,14 @@ export async function pagesApi(path: string, method: string, body?: unknown): Pr
   if (route === '/data/health') return structuredClone(data.overview.health);
   if (route === '/backtests') return structuredClone(data.backtests);
   if (route === '/reports') return data.reports.map((r: Data) => ({ ...r, url: root + r.url }));
-  if (route === '/paper') return jsonFile(`paper/${encodeURIComponent(url.searchParams.get('account') || 'forward')}.json`);
-  if (route.startsWith('/stocks/')) return jsonFile(`stocks/${encodeURIComponent(decodeURIComponent(route.split('/')[2]))}.json`);
+  if (route === '/paper') return published ? structuredClone(data.overview.paper) : jsonFile(`paper/${encodeURIComponent(url.searchParams.get('account') || 'forward')}.json`);
+  if (route.startsWith('/stocks/')) {
+    const symbol = decodeURIComponent(route.split('/')[2]);
+    if (!published) return jsonFile(`stocks/${encodeURIComponent(symbol)}.json`);
+    if (!data.stocks[symbol]) throw new Error('This instrument was unavailable in the published snapshot. Inspect Data Health.');
+    return structuredClone(data.stocks[symbol]);
+  }
   if (route.startsWith('/backtests/')) return jsonFile(`backtests/${encodeURIComponent(route.split('/')[2])}.json`);
-  if (route === '/news') return { articles: [], mode: 'demo', sources: [] };
+  if (route === '/news') return { articles: data.overview.scan.candidates.flatMap((c: Data) => c.news), mode: data.overview.scan.mode, sources: [] };
   throw new Error(engineMessage);
 }
